@@ -1,0 +1,1555 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>670</width>
+    <height>644</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>670</width>
+    <height>644</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>670</width>
+    <height>644</height>
+   </size>
+  </property>
+  <property name="mouseTracking">
+   <bool>true</bool>
+  </property>
+  <property name="tabletTracking">
+   <bool>true</bool>
+  </property>
+  <property name="windowTitle">
+   <string>MinimalSens</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="icons.qrc">
+    <normaloff>:/Icons/minimalsens.icns</normaloff>:/Icons/minimalsens.icns</iconset>
+  </property>
+  <property name="windowOpacity">
+   <double>1.000000000000000</double>
+  </property>
+  <property name="toolTip">
+   <string/>
+  </property>
+  <property name="whatsThis">
+   <string>MinimalSens</string>
+  </property>
+  <property name="autoFillBackground">
+   <bool>true</bool>
+  </property>
+  <property name="iconSize">
+   <size>
+    <width>32</width>
+    <height>32</height>
+   </size>
+  </property>
+  <property name="toolButtonStyle">
+   <enum>Qt::ToolButtonIconOnly</enum>
+  </property>
+  <property name="animated">
+   <bool>true</bool>
+  </property>
+  <property name="documentMode">
+   <bool>false</bool>
+  </property>
+  <property name="dockNestingEnabled">
+   <bool>true</bool>
+  </property>
+  <property name="unifiedTitleAndToolBarOnMac">
+   <bool>false</bool>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>671</width>
+     <height>671</height>
+    </size>
+   </property>
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>5</x>
+      <y>5</y>
+      <width>661</width>
+      <height>531</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout" columnstretch="10,1,1,1,1,1,1,1,1">
+     <property name="sizeConstraint">
+      <enum>QLayout::SetDefaultConstraint</enum>
+     </property>
+     <property name="leftMargin">
+      <number>1</number>
+     </property>
+     <property name="topMargin">
+      <number>1</number>
+     </property>
+     <property name="rightMargin">
+      <number>2</number>
+     </property>
+     <property name="bottomMargin">
+      <number>1</number>
+     </property>
+     <property name="horizontalSpacing">
+      <number>2</number>
+     </property>
+     <property name="verticalSpacing">
+      <number>5</number>
+     </property>
+     <item row="3" column="4" colspan="4">
+      <widget class="QLabel" name="label_NoStps">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Number of Steps</string>
+       </property>
+       <property name="statusTip">
+        <string>Number of step potentials</string>
+       </property>
+       <property name="whatsThis">
+        <string>Number of step potentials</string>
+       </property>
+       <property name="text">
+        <string>Number of Steps</string>
+       </property>
+      </widget>
+     </item>
+     <item row="20" column="0" rowspan="9" colspan="3">
+      <widget class="QTextBrowser" name="textBrowser">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Status Window</string>
+       </property>
+       <property name="statusTip">
+        <string>Outputs will be shown here - follow the instructions here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Status Window</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="8">
+      <widget class="QLineEdit" name="lineEdit_SampQuietTime">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Sample Quiet Time</string>
+       </property>
+       <property name="statusTip">
+        <string>Sampling quiet time in seconds</string>
+       </property>
+       <property name="whatsThis">
+        <string>Sampling quiet time</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>0.1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="8">
+      <widget class="QLineEdit" name="lineEdit_SampleIntrvl">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Sample Interval</string>
+       </property>
+       <property name="statusTip">
+        <string>Input the sampling intervals in here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Sampling intervals in seconds</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>0.1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="21" column="4" colspan="5">
+      <widget class="QCheckBox" name="checkBox_DataSmth">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Data</string>
+       </property>
+       <property name="statusTip">
+        <string>Data Smooting Activation</string>
+       </property>
+       <property name="whatsThis">
+        <string>Check to activate the smoothing algorithm</string>
+       </property>
+       <property name="text">
+        <string>Data Smooth</string>
+       </property>
+      </widget>
+     </item>
+     <item row="24" column="4" colspan="4">
+      <widget class="QLabel" name="label_adcG">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>ADC Gain</string>
+       </property>
+       <property name="statusTip">
+        <string>Analog-to-Digital converter gain</string>
+       </property>
+       <property name="whatsThis">
+        <string>Analog-to-Digital converter gain</string>
+       </property>
+       <property name="text">
+        <string>ADC Gain</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="4" colspan="4">
+      <widget class="QLabel" name="label_EChemQuietT">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Quiet Time</string>
+       </property>
+       <property name="statusTip">
+        <string>Quiet time at the beginning of EChem experiment</string>
+       </property>
+       <property name="whatsThis">
+        <string>Quiet time</string>
+       </property>
+       <property name="text">
+        <string>EChem Quiet Time (s)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="25" column="4" colspan="4">
+      <widget class="QLabel" name="label_adcS">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>ADC Speed</string>
+       </property>
+       <property name="statusTip">
+        <string>Analog-to-Digital converter speed</string>
+       </property>
+       <property name="whatsThis">
+        <string>Analog-to-Digital converter speed</string>
+       </property>
+       <property name="text">
+        <string>ADC Speed</string>
+       </property>
+      </widget>
+     </item>
+     <item row="20" column="4" colspan="5">
+      <widget class="QLabel" name="label_DataSet">
+       <property name="font">
+        <font>
+         <pointsize>9</pointsize>
+         <weight>75</weight>
+         <italic>true</italic>
+         <bold>true</bold>
+         <underline>true</underline>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Data Processing </string>
+       </property>
+       <property name="statusTip">
+        <string>Data Processing </string>
+       </property>
+       <property name="whatsThis">
+        <string>Data Processing </string>
+       </property>
+       <property name="text">
+        <string>Data Processing.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="4" colspan="5">
+      <widget class="QLabel" name="label_EChemSet">
+       <property name="font">
+        <font>
+         <pointsize>9</pointsize>
+         <weight>75</weight>
+         <italic>true</italic>
+         <bold>true</bold>
+         <underline>true</underline>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Electrochemical Settings</string>
+       </property>
+       <property name="statusTip">
+        <string>Electrochemical Settings</string>
+       </property>
+       <property name="whatsThis">
+        <string>Electrochemical Settings</string>
+       </property>
+       <property name="text">
+        <string>EChem Settings.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" rowspan="18" colspan="3">
+      <widget class="GraphicsWindow" name="graphicsView">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="tabletTracking">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>Graphing Window</string>
+       </property>
+       <property name="statusTip">
+        <string>Output graphs will be shown here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Graphing Window</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="foregroundBrush">
+        <brush brushstyle="NoBrush">
+         <color alpha="255">
+          <red>0</red>
+          <green>0</green>
+          <blue>0</blue>
+         </color>
+        </brush>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="8">
+      <widget class="QLineEdit" name="lineEdit_NoSteps">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Number of Steps</string>
+       </property>
+       <property name="statusTip">
+        <string>Input the number of the step-potentials here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Number of step-potentials</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="26" column="4" colspan="5">
+      <widget class="Line" name="line_3">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="23" column="4" colspan="5">
+      <widget class="QLabel" name="label_SigAmp">
+       <property name="font">
+        <font>
+         <pointsize>9</pointsize>
+         <weight>75</weight>
+         <italic>true</italic>
+         <bold>true</bold>
+         <underline>true</underline>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Signal Amplification</string>
+       </property>
+       <property name="statusTip">
+        <string>Signal Amplification</string>
+       </property>
+       <property name="whatsThis">
+        <string>Signal Amplification</string>
+       </property>
+       <property name="text">
+        <string>Signal Amplification.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="17" column="8">
+      <widget class="QLineEdit" name="lineEdit_PMV">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>PMT Voltage</string>
+       </property>
+       <property name="statusTip">
+        <string>Input the HV in here (200-900V)</string>
+       </property>
+       <property name="whatsThis">
+        <string>High-volage adjustments (200-900V)</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>200</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="16" column="4" colspan="5">
+      <widget class="QCheckBox" name="checkBox_PMMod">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Photomultiplyer Activation</string>
+       </property>
+       <property name="statusTip">
+        <string>Photomultiplyer Activation</string>
+       </property>
+       <property name="whatsThis">
+        <string>Check to activate the photomultiplyer module</string>
+       </property>
+       <property name="text">
+        <string>Photomultiplyer Module.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="27" column="4" colspan="4">
+      <widget class="QPushButton" name="RunButton">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Run</string>
+       </property>
+       <property name="statusTip">
+        <string>Click to initiate the experiment</string>
+       </property>
+       <property name="whatsThis">
+        <string>Initiates the experiment</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>Run</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="flat">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="11" column="8">
+      <widget class="QLineEdit" name="lineEdit_NumbSamps">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Samples</string>
+       </property>
+       <property name="statusTip">
+        <string>Input number of samples in here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Input number of samples in here</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="19" column="4" colspan="5">
+      <widget class="Line" name="line_6">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="8">
+      <widget class="QLineEdit" name="lineEdit_PulseWidth">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Pulse Width</string>
+       </property>
+       <property name="statusTip">
+        <string>Input the length of the pulse width here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Pulse width length in seconds</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="4" colspan="5">
+      <widget class="Line" name="line">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="27" column="8">
+      <widget class="QPushButton" name="TestButton">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Test</string>
+       </property>
+       <property name="statusTip">
+        <string>Test Button</string>
+       </property>
+       <property name="whatsThis">
+        <string>Test Button</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>Test</string>
+       </property>
+      </widget>
+     </item>
+     <item row="19" column="0" colspan="3">
+      <widget class="Line" name="line_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="8">
+      <widget class="QLineEdit" name="lineEdit_QuietTime">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Quiet Time</string>
+       </property>
+       <property name="statusTip">
+        <string>Quiet time at the begining of the experiment</string>
+       </property>
+       <property name="whatsThis">
+        <string>Quiet time</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="15" column="4" colspan="5">
+      <widget class="QLabel" name="label_PhotoDetMod">
+       <property name="font">
+        <font>
+         <pointsize>9</pointsize>
+         <weight>75</weight>
+         <italic>true</italic>
+         <bold>true</bold>
+         <underline>true</underline>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Photodetection Module</string>
+       </property>
+       <property name="statusTip">
+        <string>Photodetection Module</string>
+       </property>
+       <property name="whatsThis">
+        <string>Photodetection Module</string>
+       </property>
+       <property name="text">
+        <string>Photodetection Module.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="4" colspan="4">
+      <widget class="QLabel" name="label_SampT">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Sampling Time</string>
+       </property>
+       <property name="statusTip">
+        <string>Sampling Time</string>
+       </property>
+       <property name="whatsThis">
+        <string>Sampling Time</string>
+       </property>
+       <property name="text">
+        <string>Sampling Time (s)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="17" column="4" colspan="4">
+      <widget class="QLabel" name="label_Vltg">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="statusTip">
+        <string>High-volage adjustments (200-900V)</string>
+       </property>
+       <property name="whatsThis">
+        <string>High-volage adjustments (200-900V)</string>
+       </property>
+       <property name="text">
+        <string>Voltage (V)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="4" colspan="5">
+      <widget class="QLabel" name="label_SamSet">
+       <property name="font">
+        <font>
+         <pointsize>9</pointsize>
+         <weight>75</weight>
+         <italic>true</italic>
+         <bold>true</bold>
+         <underline>true</underline>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Sampling Settings</string>
+       </property>
+       <property name="statusTip">
+        <string>Sampling Settings</string>
+       </property>
+       <property name="whatsThis">
+        <string>Sampling Settings</string>
+       </property>
+       <property name="text">
+        <string>Sampling Settings.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="14" column="4" colspan="4">
+      <widget class="QLabel" name="label_IncubT">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Incubation Time</string>
+       </property>
+       <property name="statusTip">
+        <string>Incubation time in minutes</string>
+       </property>
+       <property name="whatsThis">
+        <string>Incubation time in minutes</string>
+       </property>
+       <property name="text">
+        <string>Incubation Time (min)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="8">
+      <widget class="QLineEdit" name="lineEdit_FinalE">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Final Potential</string>
+       </property>
+       <property name="statusTip">
+        <string>Input the final potential here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Final Potential</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>0.0</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="4" colspan="4">
+      <widget class="QLabel" name="label_IP">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Initial Potential</string>
+       </property>
+       <property name="statusTip">
+        <string>Initial Potential</string>
+       </property>
+       <property name="whatsThis">
+        <string>Initial Potential</string>
+       </property>
+       <property name="text">
+        <string>Initial Potential (V)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="4" colspan="4">
+      <widget class="QLabel" name="label_FP">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Final Potential</string>
+       </property>
+       <property name="statusTip">
+        <string>Final Potential</string>
+       </property>
+       <property name="whatsThis">
+        <string>Final Potential</string>
+       </property>
+       <property name="text">
+        <string>Final Potential (V)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="14" column="8">
+      <widget class="QLineEdit" name="lineEdit_IncubTime">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Incubation Time</string>
+       </property>
+       <property name="statusTip">
+        <string>Incubation Time</string>
+       </property>
+       <property name="whatsThis">
+        <string>Input the incubation time in here</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="22" column="8">
+      <widget class="QComboBox" name="comboBox_orders">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Algorithm order</string>
+       </property>
+       <property name="statusTip">
+        <string>Choose the order of the algorithm</string>
+       </property>
+       <property name="whatsThis">
+        <string>Choose the order of the algorithm</string>
+       </property>
+       <item>
+        <property name="text">
+         <string>1</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>2</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>3</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>4</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>5</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>6</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>7</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>8</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>9</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>10</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="11" column="4" colspan="4">
+      <widget class="QLabel" name="label_NoSamp">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Samples</string>
+       </property>
+       <property name="statusTip">
+        <string>Number or Samples</string>
+       </property>
+       <property name="whatsThis">
+        <string>Number of Samples</string>
+       </property>
+       <property name="text">
+        <string>Samples</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="4" colspan="4">
+      <widget class="QLabel" name="label_PW">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Pulse Width</string>
+       </property>
+       <property name="statusTip">
+        <string>Pulse width </string>
+       </property>
+       <property name="whatsThis">
+        <string>Pulse width</string>
+       </property>
+       <property name="text">
+        <string>Pulse Width (s)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="4" colspan="5">
+      <widget class="QCheckBox" name="checkBox_SampMod">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Data Smooth</string>
+       </property>
+       <property name="statusTip">
+        <string>Sampling Mode Activation</string>
+       </property>
+       <property name="whatsThis">
+        <string>Sampling Mode Activation</string>
+       </property>
+       <property name="text">
+        <string>Sampling Mode</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="4" colspan="4">
+      <widget class="QLabel" name="label_SI">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Sample Interval</string>
+       </property>
+       <property name="statusTip">
+        <string>Sampling intervals</string>
+       </property>
+       <property name="whatsThis">
+        <string>Sampling intervals</string>
+       </property>
+       <property name="text">
+        <string>Sample Interval (s)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="25" column="8">
+      <widget class="QLineEdit" name="lineEdit_ADCSpd">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>ADC Speed</string>
+       </property>
+       <property name="statusTip">
+        <string>Input the ADC speed here (1 or 2)</string>
+       </property>
+       <property name="whatsThis">
+        <string>Analog-to-Digital converter speed</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="24" column="8">
+      <widget class="QLineEdit" name="lineEdit_ADCGain">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>ADC Gain</string>
+       </property>
+       <property name="statusTip">
+        <string>Input the ADC gain here (1, 2, 64 or 128)</string>
+       </property>
+       <property name="whatsThis">
+        <string>Analog-to-Digital converter gain</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="4" colspan="4">
+      <widget class="QLabel" name="label_SampQuietT">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Sample Quiet Time</string>
+       </property>
+       <property name="statusTip">
+        <string>Sample Quiet Time</string>
+       </property>
+       <property name="whatsThis">
+        <string>Sample Quiet Time</string>
+       </property>
+       <property name="text">
+        <string>Sampler Quiet Time (s)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="8">
+      <widget class="QLineEdit" name="lineEdit_SampTime">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Sampling Time</string>
+       </property>
+       <property name="statusTip">
+        <string>Sampling Time</string>
+       </property>
+       <property name="whatsThis">
+        <string>Inpu the sampling time duration in here</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="13" column="4" colspan="5">
+      <widget class="QCheckBox" name="checkBox_IncubMod">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Incubation Mode Activation</string>
+       </property>
+       <property name="statusTip">
+        <string>Incubation Mode Activation</string>
+       </property>
+       <property name="whatsThis">
+        <string>Check to activate the Incubation Mode </string>
+       </property>
+       <property name="text">
+        <string>Incubation Mode</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="8">
+      <widget class="QLineEdit" name="lineEdit_InitE">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Initial Potential</string>
+       </property>
+       <property name="statusTip">
+        <string>Input the initial potential here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Initial Potential</string>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>0.0</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="22" column="4" colspan="4">
+      <widget class="QComboBox" name="comboBox_Smt">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="toolTip">
+        <string>Smoothing Algorithm</string>
+       </property>
+       <property name="statusTip">
+        <string>Choose your smoothin algorithm here</string>
+       </property>
+       <property name="whatsThis">
+        <string>Smoothing Algorithm</string>
+       </property>
+       <item>
+        <property name="text">
+         <string>Savitzky-Golay</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Trianagular Moving Ave.</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="0" column="3" rowspan="29">
+      <widget class="Line" name="line_4">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>670</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="defaultUp">
+    <bool>false</bool>
+   </property>
+   <property name="nativeMenuBar">
+    <bool>false</bool>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="tabletTracking">
+     <bool>true</bool>
+    </property>
+    <property name="toolTip">
+     <string/>
+    </property>
+    <property name="statusTip">
+     <string>File Tab</string>
+    </property>
+    <property name="whatsThis">
+     <string>File Tab</string>
+    </property>
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionNew"/>
+    <addaction name="actionOpen"/>
+    <addaction name="separator"/>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="tabletTracking">
+     <bool>true</bool>
+    </property>
+    <property name="toolTip">
+     <string/>
+    </property>
+    <property name="statusTip">
+     <string>Help Tab</string>
+    </property>
+    <property name="whatsThis">
+     <string>Help Tab</string>
+    </property>
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionHelp"/>
+    <addaction name="separator"/>
+    <addaction name="actionAbout_Us"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="toolTip">
+    <string>Staus Bar</string>
+   </property>
+   <property name="statusTip">
+    <string>Status Bar</string>
+   </property>
+   <property name="whatsThis">
+    <string>Status Bar</string>
+   </property>
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="sizeGripEnabled">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextUnderIcon</enum>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionNew"/>
+   <addaction name="actionOpen"/>
+   <addaction name="separator"/>
+   <addaction name="actionExit"/>
+   <addaction name="separator"/>
+   <addaction name="actionConnection"/>
+  </widget>
+  <action name="actionNew">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Icons/new.icns</normaloff>:/Icons/new.icns</iconset>
+   </property>
+   <property name="text">
+    <string>New</string>
+   </property>
+   <property name="toolTip">
+    <string>Click to create a new file</string>
+   </property>
+   <property name="statusTip">
+    <string>Create a new file </string>
+   </property>
+   <property name="whatsThis">
+    <string>New File</string>
+   </property>
+   <property name="shortcut">
+    <string>Meta+N</string>
+   </property>
+   <property name="shortcutVisibleInContextMenu">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionOpen">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Icons/open.icns</normaloff>:/Icons/open.icns</iconset>
+   </property>
+   <property name="text">
+    <string>Open</string>
+   </property>
+   <property name="toolTip">
+    <string>Click to open a file</string>
+   </property>
+   <property name="statusTip">
+    <string>Open a file</string>
+   </property>
+   <property name="whatsThis">
+    <string>Open file</string>
+   </property>
+   <property name="shortcut">
+    <string>Meta+O</string>
+   </property>
+   <property name="shortcutVisibleInContextMenu">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Icons/exit.icns</normaloff>:/Icons/exit.icns</iconset>
+   </property>
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="toolTip">
+    <string>Click here to exit</string>
+   </property>
+   <property name="statusTip">
+    <string>Exit the program</string>
+   </property>
+   <property name="whatsThis">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Meta+Z</string>
+   </property>
+  </action>
+  <action name="actionHelp">
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Icons/help.icns</normaloff>:/Icons/help.icns</iconset>
+   </property>
+   <property name="text">
+    <string>Help</string>
+   </property>
+   <property name="toolTip">
+    <string>Click here for help</string>
+   </property>
+   <property name="statusTip">
+    <string>Help ?</string>
+   </property>
+   <property name="whatsThis">
+    <string>Help</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+  </action>
+  <action name="actionAbout_Us">
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Icons/about.icns</normaloff>:/Icons/about.icns</iconset>
+   </property>
+   <property name="text">
+    <string>About Us</string>
+   </property>
+   <property name="statusTip">
+    <string>About</string>
+   </property>
+   <property name="whatsThis">
+    <string>About Us</string>
+   </property>
+   <property name="shortcut">
+    <string>F12</string>
+   </property>
+  </action>
+  <action name="actionBluetooth">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../../../.designer/MinimalSensGUI_v1.03/Icons/bluetooth.icns</normaloff>../../../.designer/MinimalSensGUI_v1.03/Icons/bluetooth.icns</iconset>
+   </property>
+   <property name="text">
+    <string>Bluetooth</string>
+   </property>
+   <property name="toolTip">
+    <string>Click to connect via Bluetooth</string>
+   </property>
+   <property name="shortcut">
+    <string>Meta+B</string>
+   </property>
+  </action>
+  <action name="actionUSB">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Icons/usb.icns</normaloff>:/Icons/usb.icns</iconset>
+   </property>
+   <property name="text">
+    <string>USB</string>
+   </property>
+   <property name="toolTip">
+    <string>Click to connect via USB</string>
+   </property>
+   <property name="shortcut">
+    <string>Meta+U</string>
+   </property>
+  </action>
+  <action name="actionWifi">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Icons/wifi.icns</normaloff>:/Icons/wifi.icns</iconset>
+   </property>
+   <property name="text">
+    <string>Wifi</string>
+   </property>
+   <property name="toolTip">
+    <string>Click to connect via Wifi</string>
+   </property>
+   <property name="shortcut">
+    <string>Meta+W</string>
+   </property>
+  </action>
+  <action name="actionConnection">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="icons.qrc">
+     <normaloff>:/Icons/disconnect.icns</normaloff>
+     <normalon>:/Icons/connect.icns</normalon>
+     <disabledoff>:/Icons/disconnect.icns</disabledoff>
+     <disabledon>:/Icons/connect.icns</disabledon>
+     <activeoff>:/Icons/disconnect.icns</activeoff>
+     <activeon>:/Icons/connect.icns</activeon>:/Icons/disconnect.icns</iconset>
+   </property>
+   <property name="text">
+    <string>Connection</string>
+   </property>
+   <property name="toolTip">
+    <string>Click to connect</string>
+   </property>
+   <property name="statusTip">
+    <string>Click to connect</string>
+   </property>
+   <property name="shortcut">
+    <string>Meta+C</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>GraphicsWindow</class>
+   <extends>QGraphicsView</extends>
+   <header>pyqtgraph.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>graphicsView</tabstop>
+  <tabstop>textBrowser</tabstop>
+  <tabstop>lineEdit_InitE</tabstop>
+  <tabstop>lineEdit_FinalE</tabstop>
+  <tabstop>lineEdit_NoSteps</tabstop>
+  <tabstop>lineEdit_PulseWidth</tabstop>
+  <tabstop>lineEdit_SampleIntrvl</tabstop>
+  <tabstop>lineEdit_QuietTime</tabstop>
+  <tabstop>checkBox_SampMod</tabstop>
+  <tabstop>lineEdit_SampQuietTime</tabstop>
+  <tabstop>lineEdit_NumbSamps</tabstop>
+  <tabstop>lineEdit_SampTime</tabstop>
+  <tabstop>checkBox_IncubMod</tabstop>
+  <tabstop>lineEdit_IncubTime</tabstop>
+  <tabstop>checkBox_PMMod</tabstop>
+  <tabstop>lineEdit_PMV</tabstop>
+  <tabstop>checkBox_DataSmth</tabstop>
+  <tabstop>comboBox_Smt</tabstop>
+  <tabstop>comboBox_orders</tabstop>
+  <tabstop>lineEdit_ADCGain</tabstop>
+  <tabstop>lineEdit_ADCSpd</tabstop>
+  <tabstop>RunButton</tabstop>
+  <tabstop>TestButton</tabstop>
+ </tabstops>
+ <resources>
+  <include location="icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>

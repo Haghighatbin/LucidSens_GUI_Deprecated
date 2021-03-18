@@ -1,0 +1,19 @@
+<RCC>
+  <qresource>
+    <file>Icons/disconnect.icns</file>
+    <file>Icons/connect.icns</file>
+    <file>Icons/settings.icns</file>
+    <file>Icons/save.icns</file>
+    <file>Icons/open.icns</file>
+    <file>Icons/new.icns</file>
+    <file>Icons/minimalsens.icns</file>
+    <file>Icons/help.icns</file>
+    <file>Icons/exit.icns</file>
+    <file>Icons/bluetooth.icns</file>
+    <file>Icons/about.icns</file>
+    <file>Icons/usb.icns</file>
+    <file>Icons/wifi.icns</file>
+    <file>Icons/connect.icns</file>
+    <file>Icons/connect.icns</file>
+  </qresource>
+</RCC>
