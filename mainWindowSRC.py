@@ -42,49 +42,28 @@ Changes in version 1.08
 - switched to loboris firmware
 - the data transferring modules were all recoded.
 """
-import sys
+import sys, os, time, json, serial, socket
 from PyQt5 import QtWidgets, QtTest, QtCore, QtGui
 from PyQt5.QtCore import pyqtSlot
 import pyqtgraph as pg
-# from PyQt5.QtWidgets import *
-# from PyQt5.QtCore import *
-# from PyQt5.QtGui import *
-# from PyQt5 import QtTest
 import matplotlib.pyplot as plt
-import qdarkstyle
-import csv
-from numpy import trapz
+# from numpy import trapz
 import numpy as np
-import serial
-# import serial.tools.list_ports as lp
-import sys
-import time
-import json
-# import Image
+import serial.tools.list_ports as lp
 import chardet
-import socket
-import os
-
+import csv
 import mainWindowGUI
-
-cyan_font = "<font size='3' color='cyan'>"
-red_font = "<font size='3' color='red'>"
-green_font = "<font size='3' color='green'>"
-blue_font = "<font size='3' color='blue'>"
-end_font = "</font>"
-
+import qdarkstyle
 board_ip = "192.168.1.95"
 board_port = 3175
-
-__APPNAME__ = "MinimalSens"
-VERSION = "1.07"
-
+__APPNAME__ = "LucidSens"
+VERSION = "0.01"
 
 class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
     def __init__(self, parent=None):
         super(Form, self).__init__(parent)
 
-        self.packet_size = 77
+        self.packet_size = 128
         self.content = ''
 
         self.serial_connection = False
@@ -107,20 +86,17 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         # img_data = np.asarray(Image.open(img))
         # image = pg.ImageItem(img_data)
         # self.vb.addItem(image)
-
         p0 = self.graphicsView.addPlot()
         p0.showAxis('right', show=True)
         p0.showAxis('top', show=True)
         p0.showGrid(x=True, y=True, alpha=1)
         # p0.setLabel('bottom', 'x', **{'color': 'white', 'font-size': '12px'})
         # p0.setLabel('left', 'f(x)', **{'color': 'white', 'font-size': '12px'})
-
-        self.textBrowser.append("Copyright © 2020 " + blue_font + "Minimal" + end_font + red_font + "Sens" + end_font)
-        self.textBrowser.append("Version {}\n".format(VERSION))
-        self.textBrowser.append("Developed by M. Amin Haghighatbin")
-        # "PhD, Postdoctoral Fellow\n"
-        # "中国科学技术大学\n"
-        # "University of Science and Technology of China (USTC)\n")
+        self.textBrowser.append("<font size='3' color='blue'>" + "Lucid" + "</font>" + "<font size='2' color='orange'>" + "Sens" + "</font>" + "<font size='2' color='white'>" + " (Chemiluminescence-dedication)" + "</font>")
+        self.textBrowser.append("<font size='2' color='white'>" + "Version {}".format(VERSION) + "</font>")
+        self.textBrowser.append("<font size='2' color='white'>" + "Developed by M. Amin Haghighatbin"+ "</font>")
+        self.textBrowser.append("<font size='2' color='white'>" + "中国科学技术大学"+ "</font>")
+        self.textBrowser.append("<font size='2' color='white'>" + "University of Science and Technology of China (USTC)\n"+ "</font>")
         self.textBrowser.append("-" * 36)
         self.checkBox_SampMod.stateChanged.connect(self.sampling_mod_state)
         self.checkBox_IncubMod.stateChanged.connect(self.incubation_mod_state)
@@ -141,6 +117,15 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.lineEdit_PmV.editingFinished.connect(self.pmv_chk)
         self.lineEdit_adcGn.editingFinished.connect(self.adcg_chk)
         self.lineEdit_adcSpd.editingFinished.connect(self.adcs_chk)
+    
+    def pen(self, size, color):
+        return "<font size='{}' color='{}'>".format(size, color)
+        # cyan_font = "<font size='3' color='cyan'>"
+        # red_font = "<font size='3' color='red'>"
+        # orange_font = "<font size='3' color='orange'>"
+        # green_font = "<font size='3' color='green'>"
+        # blue_font = "<font size='3' color='blue'>"
+        # end_font = "</font>"
 
     def ip_chk(self):
         try:
@@ -512,26 +497,28 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
 
     def serial_check(self):
         try:
-            self.textBrowser.append("Trying to establishing connection via serial ports...")
-            # MacOs doesn't return tty! we'll find cu(calling unit) and then generating tty port from that! weird ha?!
-            self.textBrowser.append("Scanning serial ports...")
+            self.textBrowser.append("Establishing connection via serial ports.")
+            self.textBrowser.append("Scanning serial ports.")
             QtTest.QTest.qWait(1000)
             if lp.comports():
                 self.textBrowser.append("Available ports:")
-                serial_port = ""
-                for idx, ports in enumerate(lp.comports()):
-                    self.textBrowser.append("{}:  {}".format(idx, ports))
-                    if "usbmodem" in str(ports.device) or "wch" in str(ports.device) or "SLAB" in str(ports.device):
-                        serial_port = str(ports.device)
+                for idx, port in enumerate(lp.comports()):
+                    self.textBrowser.append("{}:  {}".format(idx, port))
+                    # in MAC OS
+                    if "usbmodem" in str(port.device) or "wch" in str(port.device) or "SLAB" in str(port.device):
+                        serial_port = str(port.device)
+                        serial_port = serial_port.replace("cu", "tty")
+
+                    # in Windows OS
+                    if "CP210x" in str(port):
+                        serial_port = str(port.device)
                 QtTest.QTest.qWait(1000)
 
                 if serial_port:
-                    self.textBrowser.append("Initializing connection with the MinimalSens via Serial port...")
-                    self.textBrowser.append("Serial port: " + green_font + serial_port + end_font)
+                    self.textBrowser.append("Initializing connection with the LuidSens via Serial port...")
+                    self.textBrowser.append("Serial port: " + self.pen(2, 'green') + serial_port + "</font>")
                     QtTest.QTest.qWait(1000)
 
-                    if "usbmodem" in serial_port:
-                        serial_port = serial_port.replace("cu", "tty")
                     self.operator = serial.Serial(serial_port, baudrate=115200)
                     self.textBrowser.append("")
                     self.textBrowser.append("-" * 48)
@@ -542,17 +529,17 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     self.serial_connection = False
                     QtTest.QTest.qWait(1000)
                     self.textBrowser.append(
-                        red_font + "No available serial connection with MinimalSens found! " + end_font)
+                        self.pen(2, 'red') + "Failed to communicate via Serial!" + "</font>")
             else:
                 self.serial_connection = False
                 QtTest.QTest.qWait(1000)
-                self.textBrowser.append(red_font + "No available serial ports found! " + end_font)
+                self.textBrowser.append(self.pen(2, 'red') + "Failed to find available serial ports! " + "</font>")
             return self.serial_connection
 
         except Exception as e:
             self.serial_connection = False
             self.textBrowser.append(
-                red_font + "No Serial connection found, switching to Wifi Mode..." + end_font + "\n")
+            self.pen(2, 'red') + "Failed to communicate via Serial!" + "</font>")
             self.textBrowser.append(str(e) + "\n")
             return self.serial_connection
 
@@ -562,22 +549,22 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.serial_check()
         if self.serial_connection:
             self.textBrowser.append(
-                cyan_font + "Connection with the MinimalSens is established via Serial port." + end_font)
+                self.pen(2, 'cyan') + "Connection established via Serial port." + "</font>")
             self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connect.icns"))
         if not self.serial_connection:
             self.wifi_check()
             if self.wifi_connection:
                 self.textBrowser.append(
-                    cyan_font + "Connection with the MinimalSens is established via Wifi." + end_font)
+                    self.pen(2, 'cyan') + "Wifi connection established." + "</font>")
                 self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connect.icns"))
 
             else:
                 self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connect.icns"))
 
-                self.textBrowser.append(red_font + "Neither serial nor wifi connections were found." + end_font + "\n")
+                self.textBrowser.append(self.pen(2, 'red') + "Neither serial nor wifi connections were found." + "</font>" + "\n")
                 msg = QtWidgets.QMessageBox()
-                msg.setText("Communication with the" + blue_font +
-                            " Minimal" + end_font + red_font + "Sens " + end_font + "was failed!\n" +
+                msg.setText("Communication with " + self.pen(2, 'blue') +
+                            " Minimal" + "</font>" + self.pen(2, 'orange') + "Sens " + "</font>" + "was failed!\n" +
                             "please check your connections and try again.")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setWindowTitle("Warning")
@@ -602,19 +589,19 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
     def serial_sndr_recvr(self, command):
         delay = 1000  # in ms
         print('Waiting for invitation', end='')
-        while b's_thread: READY.\n' not in self.operator.read_all():
+        while b'sr_receiver: READY\n' not in self.operator.read_all():
             print('.', end='')
             QtTest.QTest.qWait(delay)
         print('\nInvited, sending GO!')
 
-        while b'got it!\n' not in self.operator.read_all():
+        while b'got it.\n' not in self.operator.read_all():
             self.operator.write('go#'.encode())
             QtTest.QTest.qWait(delay)
 
         pck_size_tot = 0
         t0 = time.time()
 
-        def chunker(cmd):
+        def chopper(cmd):
             # return [cmd[i:i + self.pck_size] for i in range(0, len(cmd), self.pck_size)]
             data = []
             segments = [cmd[i:i + self.packet_size] for i in range(0, len(cmd), self.packet_size)]
@@ -628,16 +615,17 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         try:
             if len(command) > self.packet_size:
                 print('Data larger than {} chars, calling Chunker...'.format(self.packet_size))
-                for idx, data in enumerate([chunk for chunk in chunker(command)]):
+                for idx, data in enumerate([chunk for chunk in chopper(command)]):
                     print('packet[{}]: {} --- length: {} chars --- size: {}'.format(idx, data, len(data),
                                                                                     sys.getsizeof(data)))
                     self.operator.write(data.encode())
                     QtTest.QTest.qWait(delay)
                     resp = self.operator.read_all()
+                    print(resp)
                     if 'EOF received.\n' in resp.decode():
-                        print('_MinimalSens: EOF received in first run, file was sent successfully.')
+                        print('_LucidSens: EOF received in first run, file was sent successfully.')
                         pck_size_tot += sys.getsizeof(data)
-                    elif b'got it!\n' in resp:
+                    elif b'got it.\n' in resp:
                         print('packet [{}] received on the first try.'.format(idx))
                         pck_size_tot += sys.getsizeof(data)
                     else:
@@ -647,31 +635,31 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                             self.operator.write(data.encode())
                             QtTest.QTest.qWait(delay)
                             resp = self.operator.read_all()
-                            # print(resp)
+                            print(resp)
                             if 'EOF received.\n' in resp.decode():
-                                print('EOF received in retry')
+                                print('EOF received in retry, file was successfully sent.')
                                 pck_size_tot += sys.getsizeof(data)
                                 break
-                            elif b'got it!\n' in resp:
+                            elif b'got it.\n' in resp:
                                 print('packet sent in retry.')
                                 pck_size_tot += sys.getsizeof(data)
                                 break
                             else:
                                 QtTest.QTest.qWait(delay)
                                 pass
-                        print('packet received eventually.')
+                        print('packet eventually received by LS.')
 
             else:
-                print('Data not larger than {} chars, no need to call Chunker.'.format(self.packet_size))
+                print('Data not larger than {} chars, no need to call the Chunker.'.format(self.packet_size))
+                command += '*#'
                 self.operator.write(command.encode())
                 QtTest.QTest.qWait(delay)
                 resp = self.operator.read_all()
-                if 'EOF received.\n' in resp.decode():
-                    print('\n_MinimalSens: EOF received on the first try.')
+                print(resp)
+                if 'EOF received.' in resp.decode():
+                    print('\n_LucidSens: EOF received by LS on the first try.')
                     pck_size_tot += sys.getsizeof(command)
-                elif b'got it!\n' in resp:
-                    print('\n_MinimalSens: packet received on the first try.')
-                    pck_size_tot += sys.getsizeof(command)
+                
                 else:
                     print('sending packet again', end='')
                     while True:
@@ -679,20 +667,20 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                         print('.', end='')
                         QtTest.QTest.qWait(delay)
                         resp = self.operator.read_all()
-                        if 'EOF received.\n' in resp.decode():
-                            print('\n_MinimalSens: EOF received in retry.')
+                        if 'EOF received.' in resp.decode():
+                            print('\n_LucidSens: EOF received in retry.')
                             pck_size_tot += sys.getsizeof(command)
                             break
-                        elif b'got it!\n' in self.operator.read_all():
-                            print('\n_MinimalSens: packet sent in retry.')
+                        elif b'got it.' in self.operator.read_all():
+                            print('\n_LucidSens: packet sent in retry.')
                             pck_size_tot += sys.getsizeof(command)
                             break
                         else:
                             QtTest.QTest.qWait(delay)
                             pass
-                    print('Packet received eventually.')
+                    print('Packet eventually received by LucidSens.')
 
-            print('{} seconds for {} bytes to be transferred.'.format((time.time() - t0), pck_size_tot))
+            print('{} seconds for {} bytes to be sent.'.format((time.time() - t0), pck_size_tot))
             print('Receiving', end='')
 
             while '*' not in self.content:
@@ -700,14 +688,16 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     QtTest.QTest.qWait(delay)
                     data = self.operator.read_all()
                     data_decd = data.decode()
+                    # print(data_decd)
                     if '#' in data_decd and data_decd[:-2] not in self.content:
                         if data_decd[-2] == '*':
                             self.content += data_decd[:-1]
-                            print('Done!')
+                            print('Response received!')
+                            # self.operator.write('EOF received.#'.encode())
                             break
                         elif data_decd[-2] == '_':
                             self.content += data_decd[:-2]
-                            self.operator.write('got it!\n'.encode())
+                            self.operator.write('got it.#'.encode())
                             print('.', end='')
                             # QtTest.QTest.qWait(delay)
                         else:
@@ -719,27 +709,26 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     pass
             print('\nResponse: {}'.format(self.content))
             if '*' in self.content:
-                self.operator.write('EOF received.\n'.encode())
+                self.operator.write('EOF received.#'.encode())
                 # print('Content: {}\n'.format(content))
                 # print('length: {} chars\n'.format(len(content)))
                 raw_cmd = open('resp.txt', 'w')
                 raw_cmd.write(self.content[:-1])
                 raw_cmd.close()
-                print('Response file is saved.')
                 print('Processing the response.')
+
                 with open('resp.txt', 'r') as f:
                     for line in f:
-                        if eval(line)['header'] == 'test_asteroid':
-                            print('Asteroid list is received, illustrating...')
-                            self.test_A(eval(line)['body'])
+                        if eval(line)['header'] == 'test_astroid':
+                            print('Astroid list received, illustrating...')
+                            self.test_module(eval(line)['body'])
                         if eval(line)['header'] == 'run_incubator':
-                            print('_MinimalSens: {}'.format(eval(line)['body']))
+                            print('_LucidSens: {}'.format(eval(line)['body']))
         except KeyboardInterrupt:
             print('Aborted!')
         except Exception as e:
             print(e)
-        print('Done.')
-        return
+        return 'Exiting Sender_Receiver.'
 
     def wifi_sndr_recr(self, command):
         try:
@@ -779,7 +768,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                         attempts += 1
 
             parsed_data = json.loads(data.decode())
-            self.test_A(parsed_data["body"])
+            self.test_module(parsed_data["body"])
 
         except Exception as e:
             print(e)
@@ -787,7 +776,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         except KeyboardInterrupt:
             print("Aborted!")
 
-    def test_A(self, list_t):
+    def test_module(self, list_t):
         try:
             self.graphicsView.clear()
             p2 = self.graphicsView.addPlot()
@@ -805,8 +794,8 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     QtTest.QTest.qWait(10)
                     p2.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][2], pen=pg.mkPen('k', width=1))
                     QtTest.QTest.qWait(10)
-            self.textBrowser.append("Software just had a successful talk with the" + blue_font +
-                                    " Minimal" + end_font + red_font + "Sens" + end_font + " via Wifi.")
+            self.textBrowser.append("Software just had a successful talk with the" + self.pen(2, 'blue') +
+                                    " Minimal" + "</font>" + self.pen(2, 'orange') + "Sens" + "</font>")
             self.textBrowser.append("-" * 57)
             p2.clear()
             p2.showGrid(x=True, y=True, alpha=1)
@@ -816,27 +805,27 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
 
     def run_test(self):
         command = ({'header': 'test'})
-        command.update({'body': {'it': 20}})
+        command.update({'body': {'it': 6}})
         jsnd_cmd = json.dumps(command)
         jsnd_cmd += '*#'
 
         if self.serial_connection:
-            self.serial_sndr_recvr(jsnd_cmd)
+            print(self.serial_sndr_recvr(jsnd_cmd))
 
-        elif self.wifi_connection:
-            self.wifi_sndr_recr(jsnd_cmd)
+        # elif self.wifi_connection:
+        #     self.wifi_sndr_recr(jsnd_cmd)
 
         else:
-            self.textBrowser.append("No available connections to the MinimalSens.")
+            self.textBrowser.append("No available connections to the LucidSens.")
             self.textBrowser.append("Please re-establish your connection first.")
             msg = QtWidgets.QMessageBox()
-            msg.setText("No available connections with the" + blue_font +
-                        " Minimal" + end_font + red_font + "Sens!" + end_font + "\n" +
+            msg.setText("No available connections with the" + self.pen(2, 'blue') +
+                        " Lucid" + "</font>" + self.pen(2, 'orange') + "Sens!" + "</font>"+ "\n" +
                         "please check your connections and try again.")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setWindowTitle("Warning")
             msg.exec_()
-        return
+        
 
     def run(self):
         command = ({'header': 'run'})
@@ -875,8 +864,8 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.textBrowser.append("No available connections to the MinimalSens.")
             self.textBrowser.append("Please re-establish your connection first.")
             msg = QtWidgets.QMessageBox()
-            msg.setText("No available connections with the" + blue_font +
-                        " Minimal" + end_font + red_font + "Sens!" + end_font + "\n" +
+            msg.setText("No available connections with the" + self.pen(2, 'blue') +
+                        " Minimal" + "</font>" + self.pen(2, 'orange') + "Sens!" + "</font>" + "\n" +
                         "please check your connections and try again.")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
@@ -1009,7 +998,6 @@ class MySplashScreen(QtWidgets.QSplashScreen):
         self.setPixmap(pixmap)
         self.setMask(pixmap.mask())
 
-
 # class Login(QtWidgets.QDialog):
 #     def __init__(self, parent=None):
 #         super(Login, self).__init__(parent)
@@ -1027,7 +1015,6 @@ class MySplashScreen(QtWidgets.QSplashScreen):
 #         layout.addWidget(self.label_pass)
 #         layout.addWidget(self.textPass)
 #         layout.addWidget(self.buttonLogin)
-#
 #
 #     def handleLogin(self):
 #         if self.textName.text() == 'foo' and self.textPass.text() == 'bar':
