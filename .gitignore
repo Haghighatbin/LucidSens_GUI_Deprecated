@@ -1,4 +1,11 @@
 ### Irrelevant files ###
-notes.txt
+Notes.txt
 junk_test.py
-__pyache__/*
+test.py
+__pycache__/*
+Deprecated/*
+.vscode/*
+
+### Themes ###
+Themes/*
+
