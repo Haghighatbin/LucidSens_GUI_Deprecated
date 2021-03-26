@@ -15,5 +15,6 @@
     <file>Icons/wifi.icns</file>
     <file>Icons/connect.icns</file>
     <file>Icons/connect.icns</file>
+	<file>Icons/lucidsens.icns</file>
   </qresource>
 </RCC>

@@ -91,7 +91,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         p0.showAxis('top', show=True)
         p0.showGrid(x=True, y=True, alpha=1)
         self.textBrowser.append("<font size='4' color='blue'>" + "Lucid" + "</font>" + "<font size='4' color='orange'>" + "Sens" + "</font>" + "<font size='2' color='white'>" + " (Chemiluminescence-wing)" + "</font>")
-        intro_txt = """\nVersion {}\nDeveloped by M. Amin Haghighatbin\n中国科学技术大学\nUniversity of Science and Technology of China (USTC)\n---------------------------------------------------------------""".format(VERSION)
+        intro_txt = """\nVersion {}\nDeveloped by M. Amin Haghighatbin\n中国科学技术大学\nUniversity of Science and Technology of China (USTC)\n--------------------------------------------------------------""".format(VERSION)
         self.checkBox_SampMod.stateChanged.connect(self.sampling_mod_status)
         self.checkBox_IncubMod.stateChanged.connect(self.incubation_mod_status)
         self.checkBox_PMMod.stateChanged.connect(self.pm_mod_status)
@@ -126,15 +126,24 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         # Data Smooting
         self.comboBox_SGorders.currentIndexChanged.connect(self.DataSmoothing().smth_chk)
 
-        worker_intro = Worker(self.writer, intro_txt, color='yellow')
-        self.threadpool.start(worker_intro)
+        intro_worker = Worker(self.writer, intro_txt, color='yellow')
+        self.threadpool.start(intro_worker)
+    
+    def progress_status(self, n):
+        self.statusbar.showMessage("{}%".format(n))
 
-    def writer(self, txt, progress_status, font_size=8, color='green', delay=10):
+    def error_report(self, tpl):
+        self.textBrowser.append('ERROR:\n{}'.format(tpl))
+
+    def thread_completed(self):
+        self.statusbar.showMessage("Done")
+
+    def writer(self, txt, progress_status, font_size=8, color='green'):
+        self.textBrowser.setTextColor(QtGui.QColor('{}'.format(color)))
+        self.textBrowser.setFontPointSize(10)
         for idx, char in enumerate(txt):
-            self.textBrowser.setTextColor(QtGui.QColor('{}'.format(color)))
-            self.textBrowser.setFontPointSize(10)
             self.textBrowser.insertPlainText(char)
-            QtTest.QTest.qWait(delay)
+            QtTest.QTest.qWait(10)
         
     def pen(self, size, color):
         return "<font size='{}' color='{}'>".format(size, color)
@@ -538,7 +547,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.wifi_connection = False
         return self.wifi_connection
 
-    def serial_check(self):
+    def serial_port(self):
         try:
             if lp.comports():
                 for idx, port in enumerate(lp.comports()):
@@ -552,8 +561,8 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     if "CP210x" in str(port):
                         serial_port = str(port.device)
 
-                worker_serial = Worker(self.writer,"\nEstablishing connection via serial port\nScanning serial ports...\nAvailable port: {}\n".format(serial_port), color='green')
-                self.threadpool.start(worker_serial)
+                serial_chk_worker = Worker(self.writer,"\nEstablishing connection via serial port\nScanning serial ports...\nAvailable port: {}\n".format(serial_port), color='green')
+                self.threadpool.start(serial_chk_worker)
                 if serial_port:
                     # worker_serial2 = Worker(self.writer, "Connection established.\n--------------------------------------".format(serial_port))
                     # self.timer.singleShot(6000, lambda: self.threadpool.start(worker_serial2))
@@ -562,12 +571,14 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
 
                 else:
                     self.serial_connection = False
-                    self.timer.singleShot(1000, lambda: self.textBrowser.append(
-                        self.pen(2, 'red') + "Failed to communicate via Serial port!" + "</font>"))
-                    
+                    1000, lambda: self.textBrowser.append(
+                        self.pen(2, 'red') + "Failed to communicate via Serial port!" + "</font>")
+                    QtTest.QTest.qWait(1000)
             else:
                 self.serial_connection = False
-                self.timer.singleShot(1000, self.textBrowser.append(self.pen(2, 'red') + "Failed to find any available Serial ports! " + "</font>"))
+                self.textBrowser.append(self.pen(2, 'red') + "Failed to find any available Serial ports! " + "</font>")
+                QtTest.QTest.qWait(1000)
+
                 
             return self.serial_connection
         except Exception as e:
@@ -578,32 +589,28 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             return self.serial_connection
 
     def connection_status(self):
-        self.actionConnection.setIcon(QtGui.QIcon(":/Icons/disconnect.icns"))
-
-        self.serial_check()
-        if self.serial_connection:
-            self.timer.singleShot(5000, lambda: self.textBrowser.append(
-                self.pen(2, 'cyan') + "Connection established via Serial port." + "</font>"))
-            
-            self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connect.icns"))
+        # self.actionConnection.setIcon(QtGui.QIcon(":/Icons/disconnect.icns"))
         if not self.serial_connection:
-            self.wifi_check()
-            if self.wifi_connection:
-                self.textBrowser.append(
-                    self.pen(2, 'cyan') + "Wifi connection established." + "</font>")
-                self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connect.icns"))
+            self.serial_port()
+            QtTest.QTest.qWait(1000)
+            self.textBrowser.append(
+                self.pen(2, 'cyan') + "Connection established via Serial port." + "</font>")
+            self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connect.icns"))
 
-            else:
-                self.actionConnection.setIcon(QtGui.QIcon(":/Icons/disconnect.icns"))
-
-                self.textBrowser.append(self.pen(2, 'red') + "Neither serial nor wifi connections were found." + "</font>" + "\n")
-                msg = QtWidgets.QMessageBox()
-                msg.setText("Communication with " + self.pen(2, 'blue') +
-                            " Minimal" + "</font>" + self.pen(2, 'orange') + "Sens " + "</font>" + "was failed!\n" +
-                            "please check your connections and try again.")
-                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                msg.setWindowTitle("Warning")
-                msg.exec_()
+        else:
+            self.actionConnection.setIcon(QtGui.QIcon(":/Icons/disconnect.icns"))
+            self.operator.close()
+            self.serial_connection = False
+            msg = QtWidgets.QMessageBox()
+            QtTest.QTest.qWait(1000)
+            msg.setText("Serial communication with " + self.pen(2, 'blue') +
+                        " Lucid" + "</font>" + self.pen(2, 'orange') + "Sens " + "</font>" + "was disrupted!\n" +
+                        "please check your connections and try again.")
+            self.textBrowser.append(
+                self.pen(2, 'red') + "Serial connection is disrupted." + "</font>")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setWindowTitle("Warning")
+            msg.exec_()
 
         # Dialog to send username and password
         # self.wifi_check()
@@ -624,13 +631,17 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
     def serial_sndr_recvr(self, command):
         delay = 1000  # in ms
         print('Waiting for invitation', end='')
+        self.statusbar.showMessage('Waiting for invitation')
         while b'sr_receiver: READY\n' not in self.operator.read_all():
+            # self.timer.singleShot(1000, lambda: print('.', end=''))
             print('.', end='')
             QtTest.QTest.qWait(delay)
         print('\nInvited, sending GO!')
+        self.statusbar.showMessage('Invited, sending GO!')
 
         while b'got it.\n' not in self.operator.read_all():
             self.operator.write('go#'.encode())
+            # self.timer.singleShot(1000, lambda: self.operator.write('go#'.encode()))
             QtTest.QTest.qWait(delay)
 
         pck_size_tot = 0
@@ -686,6 +697,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                         print('packet eventually received by LS.')
 
             else:
+                self.statusbar.showMessage('Sending...')
                 print('Data not larger than {} chars, no need to call the Chunker.'.format(self.packet_size))
                 command += '*#'
                 self.operator.write(command.encode())
@@ -694,6 +706,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                 print(resp)
                 if 'EOF received.' in resp.decode():
                     print('\n_LucidSens: EOF received by LS on the first try.')
+                    self.statusbar.showMessage('Command was Sent.')
                     pck_size_tot += sys.getsizeof(command)
                 
                 else:
@@ -714,12 +727,14 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                         else:
                             QtTest.QTest.qWait(delay)
                             pass
+                    self.statusbar.showMessage('Command was sent.')
                     print('Packet eventually received by LucidSens.')
 
             print('Took {} seconds to {} bytes.'.format((time.time() - t0), pck_size_tot))
             
             ### RECEIVER ###
             print('Receiving', end='')
+            self.statusbar.showMessage('Receiving...')
             while '*' not in self.content:
                 try:
                     QtTest.QTest.qWait(delay)
@@ -730,6 +745,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                         if data_decd[-2] == '*':
                             self.content += data_decd[:-1]
                             print('Response received!')
+                            self.statusbar.showMessage('Response is received')
                             # self.operator.write('EOF received.#'.encode())
                             break
                         elif data_decd[-2] == '_':
@@ -754,14 +770,8 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                 raw_cmd.write(self.content[:-1])
                 raw_cmd.close()
                 print('Processing the response.')
+                self.statusbar.showMessage('Processing the response...')
 
-                with open('resp.txt', 'r') as f:
-                    for line in f:
-                        if eval(line)['header'] == 'test_astroid':
-                            print('Astroid list received, illustrating...')
-                            self.test(eval(line)['body'])
-                        if eval(line)['header'] == 'run_incubator':
-                            print('_LucidSens: {}'.format(eval(line)['body']))
         except KeyboardInterrupt:
             print('Aborted!')
         except Exception as e:
@@ -814,8 +824,18 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         except KeyboardInterrupt:
             print("Aborted!")
 
-    def test(self, list_t):
+    def test(self):
+        while not os.path.exists('resp.txt'):
+            pass
         try:
+            with open('resp.txt', 'r') as f:
+                    for line in f:
+                        if eval(line)['header'] == 'test_astroid':
+                            print('Test_Astroid list is received, illustrating...')
+                            list_t = eval(line)['body']
+                        else:
+                            print('Something is wrong with the received list.')
+                    f.close()
             self.graphicsView.clear()
             p2 = self.graphicsView.addPlot()
             p2.showAxis('right', show=True)
@@ -828,31 +848,38 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     QtTest.QTest.qWait(10)
                 QtTest.QTest.qWait(3000)
                 for i in reversed(range(len(list_t))):
+                    QtTest.QTest.qWait(10)
                     p2.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][1], pen=pg.mkPen('k', width=1))
                     QtTest.QTest.qWait(10)
                     p2.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][2], pen=pg.mkPen('k', width=1))
                     QtTest.QTest.qWait(10)
-            self.textBrowser.append("Software just had a successful talk with the" + self.pen(2, 'blue') +
-                                    " Minimal" + "</font>" + self.pen(2, 'orange') + "Sens" + "</font>")
-            self.textBrowser.append("-" * 57)
+
+            txt = "\nSerial port is up and running.\n----------------------------------------"
+            txt_worker = Worker(self.writer, txt, color='green')
+            self.threadpool.start(txt_worker)
+            
             p2.clear()
             p2.showGrid(x=True, y=True, alpha=1)
-            return
+
         except Exception as e:
             print(e)
 
     def run_test(self):
+        if os.path.exists("resp.txt"):
+            os.remove("resp.txt")
+
         command = ({'header': 'test'})
         command.update({'body': {'it': 10}})
         jsnd_cmd = json.dumps(command)
         jsnd_cmd += '*#'
 
         if self.serial_connection:
-            print(self.serial_sndr_recvr(jsnd_cmd))
-
-        # elif self.wifi_connection:
-        #     self.wifi_sndr_recr(jsnd_cmd)
-
+            test_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
+            test_worker.signals.DONE.connect(self.thread_completed)
+            # test_worker.signals.PROGRESS.connect(self.progress_status)
+            test_worker.signals.ERROR.connect(self.error_report)
+            self.threadpool.start(test_worker)
+            self.timer.singleShot(15000, lambda: self.test())
         else:
             self.textBrowser.append("No available connections to the LucidSens.")
             self.textBrowser.append("Please re-establish your connection first.")
