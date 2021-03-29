@@ -64,7 +64,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.content = ''
         self.timer = QtCore.QTimer()
         self.threadpool = QtCore.QThreadPool()
-        print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+        # print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
         self.serial_connection = False
         self.wifi_connection = False
@@ -94,7 +94,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         intro_txt = """\nVersion {}\nDeveloped by M. Amin Haghighatbin\n中国科学技术大学\nUniversity of Science and Technology of China (USTC)\n--------------------------------------------------------------""".format(VERSION)
         self.checkBox_SampMod.stateChanged.connect(self.sampling_mod_status)
         self.checkBox_IncubMod.stateChanged.connect(self.incubation_mod_status)
-        self.checkBox_PMMod.stateChanged.connect(self.pm_mod_status)
         self.checkBox_DataSmth.stateChanged.connect(self.data_processing_mod_status)
 
         # # EChem Settings
@@ -105,30 +104,392 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         # self.lineEdit_SampleIntrvl.editingFinished.connect(self.EChemSettings().esi_chk())
         # self.lineEdit_EQuietTime.editingFinished.connect(self.EChemSettings().eqt_chk())
         
-        # Sampling Mode
-        self.lineEdit_SampQuietTime.editingFinished.connect(self.SamplingMode().sqt_chk)
-        self.lineEdit_NumbSamps.editingFinished.connect(self.SamplingMode().sn_chk)
-        self.lineEdit_SampTime.editingFinished.connect(self.SamplingMode().st_chk)
-        self.lineEdit_SampleIntrvl.editingFinished.connect(self.SamplingMode().csi_chk)
-        self.lineEdit_Raw2Avrg.editingFinished.connect(self.SamplingMode().r2avg_chk)
-
         # Incubation Mode
-        self.lineEdit_IncubTime.editingFinished.connect(self.IncubationMode().itm_chk)
-        self.lineEdit_IncubTemp.editingFinished.connect(self.IncubationMode().itp_chk)
-        self.comboBox_BlowerStat.currentIndexChanged.connect(self.IncubationMode().bf_chk)
+        self.lineEdit_IncubTime.editingFinished.connect(self.itm_chk)
+        self.lineEdit_IncubTemp.editingFinished.connect(self.itp_chk)
+        self.comboBox_BlowerStat.currentIndexChanged.connect(self.bf_chk)
+
+        # Sampling Mode
+        self.lineEdit_SampQuietTime.editingFinished.connect(self.sqt_chk)
+        self.lineEdit_NumbSamps.editingFinished.connect(self.sn_chk)
+        self.lineEdit_SampTime.editingFinished.connect(self.st_chk)
+        self.lineEdit_SampleIntrvl.editingFinished.connect(self.csi_chk)
+        self.lineEdit_Raw2Avrg.editingFinished.connect(self.r2avg_chk)
 
         # Photodetection Settings
-        self.lineEdit_PMV.editingFinished.connect(self.PhotodetectionSettings().pmv_chk)
-        self.comboBox_SampReadMod.currentIndexChanged.connect(self.PhotodetectionSettings().adcr_chk)
-        self.lineEdit_ADCGain.editingFinished.connect(self.PhotodetectionSettings().adcg_chk)
-        self.lineEdit_ADCSpd.editingFinished.connect(self.PhotodetectionSettings().adcs_chk)
+        self.lineEdit_PMV.editingFinished.connect(self.pmv_chk)
+        self.comboBox_SampReadMod.currentIndexChanged.connect(self.adcr_chk)
+        self.lineEdit_ADCGain.editingFinished.connect(self.adcg_chk)
+        self.lineEdit_ADCSpd.editingFinished.connect(self.adcs_chk)
 
         # Data Smooting
-        self.comboBox_SGorders.currentIndexChanged.connect(self.DataSmoothing().smth_chk)
+        self.comboBox_SGorders.currentIndexChanged.connect(self.smth_chk)
 
         intro_worker = Worker(self.writer, intro_txt, color='yellow')
         self.threadpool.start(intro_worker)
+
+    # def ip_chk(self):
+    #     try:
+    #         if not self.lineEdit_IP.text() or float(self.lineEdit_IP.text()) > 2.9 or float(
+    #                 self.lineEdit_IP.text()) < 0:
+    #             raise ValueError
+    #     except ValueError:
+    #         msg = QtWidgets.QMessageBox()
+    #         msg.setText("""Please enter a valid value between 0 and 2.9""")
+    #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #         msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #         msg.exec_()
+    #         self.lineEdit_IP.setText('0.0')
+    #     except Exception as e:
+    #         print(e)
+    #         self.lineEdit_IP.setText('0.0')
+
+    # def fp_chk(self):
+    #     try:
+    #         if not self.lineEdit_FP.text() or float(self.lineEdit_FP.text()) > 3 or float(
+    #                 self.lineEdit_FP.text()) < 0:
+    #             raise ValueError
+    #     except ValueError:
+    #         msg = QtWidgets.QMessageBox()
+    #         msg.setText("""Please enter a valid value between 0 and 3""")
+    #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #         msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #         msg.exec_()
+    #         self.lineEdit_FP.setText('0.0')
+
+    #     except Exception as e:
+    #         print(e)
+    #         self.lineEdit_FP.setText('0.0')
+
+    # def nc_chk(self):
+    #     try:
+    #         if not self.lineEdit_NC.text() or float(self.lineEdit_NC.text()) > 10 or float(
+    #                 self.lineEdit_NC.text()) < 1:
+    #             msg = QtWidgets.QMessageBox()
+    #             msg.setText("""Please enter a valid value between 1 and 10""")
+    #             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #             msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #             msg.exec_()
+    #             self.lineEdit_NC.setText('1')
+    #     except ValueError:
+    #         msg = QtWidgets.QMessageBox()
+    #         msg.setText("""Please enter a valid value between 1 and 10""")
+    #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #         msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #         msg.exec_()
+    #         self.lineEdit_NC.setText('1')
+    #     except Exception as e:
+    #         print(e)
+    #         self.lineEdit_NC.setText('1')
+
+    # def pw_chk(self):
+    #     try:
+    #         if not self.lineEdit_PW.text() or float(self.lineEdit_PW.text()) > 10 or float(
+    #                 self.lineEdit_PW.text()) < 1:
+    #             msg = QtWidgets.QMessageBox()
+    #             msg.setText("""Please enter a valid value between 1 and 10""")
+    #             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #             msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #             msg.exec_()
+    #             self.lineEdit_PW.setText('1')
+    #     except ValueError:
+    #         msg = QtWidgets.QMessageBox()
+    #         msg.setText("""Please enter a valid value between 1 and 10""")
+    #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #         msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #         msg.exec_()
+    #         self.lineEdit_PW.setText('1')
+    #     except Exception as e:
+    #         print(e)
+    #         self.lineEdit_PW.setText('1')
+
+    # def esi_chk(self):
+    #     try:
+    #         if not self.lineEdit_SI.text() or float(self.lineEdit_SI.text()) > 1.001 or float(
+    #                 self.lineEdit_SI.text()) < 0.001:
+    #             msg = QtWidgets.QMessageBox()
+    #             msg.setText("""Please enter a valid value between 0.001 and 1.1""")
+    #             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #             msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #             msg.exec_()
+    #             self.lineEdit_SI.setText('0.1')
+    #     except ValueError:
+    #         msg = QtWidgets.QMessageBox()
+    #         msg.setText("""Please enter a valid value between 0.001 and 1.1""")
+    #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #         msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #         msg.exec_()
+    #         self.lineEdit_SI.setText('0.1')
+    #     except Exception as e:
+    #         print(e)
+    #         self.lineEdit_SI.setText('0.1')
+
+    # def eqt_chk(self):
+    #     try:
+    #         if not self.lineEdit_EChemQT.text() or float(self.lineEdit_EChemQT.text()) > 10 or float(
+    #                 self.lineEdit_EChemQT.text()) < 0:
+    #             msg = QtWidgets.QMessageBox()
+    #             msg.setText("""Please enter a valid value between 0 and 10""")
+    #             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #             msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #             msg.exec_()
+    #             self.lineEdit_EChemQT.setText('1')
+    #     except ValueError:
+    #         msg = QtWidgets.QMessageBox()
+    #         msg.setText("""Please enter a valid value between 0 and 10""")
+    #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+    #         msg.setIcon(QtWidgets.QMessageBox.Warning)
+    #         msg.exec_()
+    #         self.lineEdit_EChemQT.setText('1')
+    #     except Exception as e:
+    #         print(e)
+    #         self.lineEdit_EChemQT.setText('1')
+
+    def sqt_chk(self):
+        """Sampler Quiet Time: A quiet time before initialising the aquisition, no data will be collected during this time."""
+        try:
+            if not self.lineEdit_SampQuietTime.text() or float(self.lineEdit_SampQuietTime.text()) > 10 or float(self.lineEdit_SampQuietTime.text()) < 0:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value between 0 and 100""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_SampQuietTime.setText('1')
+
+            # if not self.lineEdit_SampQuietTime.text() or float(self.lineEdit_SampQuietTime.text()) > 10 or float(
+            #         self.lineEdit_SampQuietTime.text()) < 0:
+            #     print('quiet time in try')
+            #     msg = QtWidgets.QMessageBox()
+            #     msg.setText("""Please enter a valid value between 0 and 100""")
+            #     msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            #     msg.setIcon(QtWidgets.QMessageBox.Warning)
+            #     msg.exec_()
+            #     self.lineEdit_SampQuietTime.setText('1')
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value between 0 and 100""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_SampQuietTime.setText('1')
+        except Exception as e:
+            print(e)
+            self.lineEdit_SampQuietTime.setText('1')
+
+    def sn_chk(self):
+        """Number of Samples: LucidSens has currently been designed to collect 3 samples in one cycle."""
+        try:
+            if not self.lineEdit_NumbSamps.text() or float(self.lineEdit_NumbSamps.text()) > 18 or float(
+                    self.lineEdit_NumbSamps.text()) < 1:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value between 1 and 18""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_NumbSamps.setText('3')
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value between 1 and 18""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_NumbSamps.setText('3')
+        except Exception as e:
+            print(e)
+            self.lineEdit_NumbSamps.setText('3')
+
+    def st_chk(self):
+        """Sampling Acquistion time: The total time that the photodetection module will be collecting data from each sample."""
+        try:
+            if not self.lineEdit_SampTime.text() or float(self.lineEdit_SampTime.text()) > 10 or float(
+                    self.lineEdit_SampTime.text()) < 0.1:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value between 0.1 and 100""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_SampTime.setText('1')
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value between 0.1 and 100""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_SampTime.setText('1')
+        except Exception as e:
+            print(e)
+            self.lineEdit_SampTime.setText('1')
+
+    def csi_chk(self):
+        """Sampling Intervals: The time between data collections during the acquisition time."""
+        try:
+            if not self.lineEdit_SampIntrvls.text() or float(self.lineEdit_SampIntrvls.text()) > 10 or float(
+                    self.lineEdit_SampIntrvls.text()) < 0.001:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value between 0.001 and 10""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_SampIntrvls.setText('0.01')
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value between 0.001 and 10""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_SampIntrvls.setText('0.01')
+        except Exception as e:
+            print(e)
+            self.lineEdit_SampIntrvls.setText('0.01')
+
+    def r2avg_chk(self):
+        """Raw to Average: Number of samples to be collected and averaged between two sampling intervals."""
+        try:
+            if not self.lineEdit_Raw2Avrg.text() or float(self.lineEdit_Raw2Avrg.text()) > 101 or float(
+                    self.lineEdit_Raw2Avrg.text()) < 1:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value between 0 and 101""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_Raw2Avrg.setText('10')
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value between 0 and 101""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_Raw2Avrg.setText('10')
+        except Exception as e:
+            print(e)
+            self.lineEdit_Raw2Avrg.setText('10')
+
+    def itm_chk(self):
+        """Incubation Time: Incubation time in minutes."""
+        try:
+            if not self.lineEdit_IncubTime.text() or float(self.lineEdit_IncubTime.text()) > 180 or float(
+                    self.lineEdit_IncubTime.text()) < 1:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value between 1 and 180""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_IncubTime.setText('15')
+            else:
+                return self.line
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value between 1 and 180""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_IncubTime.setText('15')
+        except Exception as e:
+            print(e)
+            self.lineEdit_IncubTime.setText('15')
+
+    def itp_chk(self):
+        """Incubation Temperature: The incubatiobn temperature will be adjusted on the defined temperature +/- 2C."""
+        try:
+            if not self.lineEdit_IncubTemp.text() or float(self.lineEdit_IncubTemp.text()) > 45 or float(
+                    self.lineEdit_IncubTemp.text()) < 15:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value between 15 and 45C""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_IncubTemp.setText('30')
+            else:
+                return self.lineEdit_IncubTemp.text()
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value between 15 and 15""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_IncubTemp.setText('30')
+        except Exception as e:
+            print(e)
+            self.lineEdit_IncubTemp.setText('30')
+
+    def bf_chk(self):
+        """Blower Status: This module could be turned off in case the incubation occurs under and external gas source."""
+        return str(self.comboBox_BlowerStat.currentText())
+
+    def adcr_chk(self):
+        """Sampling ADC reading Mode: The default setting is Slow for Chemiluminescence measuremnents."""
+        return str(self.comboBox_SampReadMod.currentText())
+
+    def pmv_chk(self):
+        """Silicon Photomultiplier Power Set: This module supplies the HV required for the SiPM to operate."""
+        try:
+            if not self.lineEdit_PMV.text() or float(self.lineEdit_PMV.text()) > 35 or float(
+                    self.lineEdit_PMV.text()) < 25:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value between 25 and 35""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_PMV.setText('32')
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value between 25 and 35""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_PMV.setText('32')
+        except Exception as e:
+            print(e)
+            self.lineEdit_PMV.setText('32')
+
+    def adcg_chk(self):
+        """Silicon Photomultiplier ADC gain: refer to ADS1232 datasheet - default value is 1."""
+        try:
+            if not self.lineEdit_ADCGain.text() or int(self.lineEdit_ADCGain.text()) not in [1, 2, 64, 128]:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value: 1, 2, 64, 128""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_ADCGain.setText('1')
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value: 1, 2, 64, 128""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_ADCGain.setText('1')
+        except Exception as e:
+            print(e)
+            self.lineEdit_ADCGain.setText('1')
+
+    def adcs_chk(self):
+        """Silicon Photomultiplier ADC gain: refer to the ADS1232 datasheet - default value is 1."""
+        try:
+            if not self.lineEdit_ADCSpd.text() or int(self.lineEdit_ADCSpd.text()) not in [1, 2]:
+                msg = QtWidgets.QMessageBox()
+                msg.setText("""Please enter a valid value: 1, 2""")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.exec_()
+                self.lineEdit_ADCSpd.setText('1')
+        except ValueError:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("""Please enter a valid value: 1, 2""")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+            self.lineEdit_ADCSpd.setText('1')
+        except Exception as e:
+            print(e)
+            self.lineEdit_ADCSpd.setText('1')
     
+    def smth_chk(self):
+        """Data Smoothing Algorithm: Runs the smoothing algorithm on the collected raw data."""
+        self.algo = self.comboBox_Smt.currentText()
+        self.order = self.comboBox_SGorders.currentText()
+        return [self.algo, self.order] 
+
     def progress_status(self, n):
         self.statusbar.showMessage("{}%".format(n))
 
@@ -150,29 +511,30 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
        
     def sampling_mod_status(self):
         if self.checkBox_SampMod.isChecked():
-            self.label_SampQuietT.setDisabled(False)
-            self.label_NoSamp.setDisabled(False)
-            self.label_SampT.setDisabled(False)
-            self.label_SampIntrvls.setDisabled(False)
-            self.label_Raw2Avrg.setDisabled(False)
             self.lineEdit_SampQuietTime.setDisabled(False)
             self.lineEdit_NumbSamps.setDisabled(False)
             self.lineEdit_SampTime.setDisabled(False)
             self.lineEdit_SampIntrvls.setDisabled(False)
             self.lineEdit_Raw2Avrg.setDisabled(False)
             self.checkBox_IncubMod.setDisabled(True)
+            self.label_PDSets.setDisabled(False)
+            self.comboBox_SampReadMod.setDisabled(False)
+            self.lineEdit_PMV.setDisabled(False)
+            self.lineEdit_ADCGain.setDisabled(False)
+            self.lineEdit_ADCSpd.setDisabled(False)
+
         else:   
-            self.label_SampQuietT.setDisabled(True)
-            self.label_NoSamp.setDisabled(True)
-            self.label_SampT.setDisabled(True)
-            self.label_SampIntrvls.setDisabled(True)
-            self.label_Raw2Avrg.setDisabled(True)
             self.lineEdit_SampQuietTime.setDisabled(True)
             self.lineEdit_NumbSamps.setDisabled(True)
             self.lineEdit_SampTime.setDisabled(True)
             self.lineEdit_SampIntrvls.setDisabled(True)
             self.lineEdit_Raw2Avrg.setDisabled(True)
             self.checkBox_IncubMod.setDisabled(False)
+            self.label_PDSets.setDisabled(True)
+            self.comboBox_SampReadMod.setDisabled(True)
+            self.lineEdit_PMV.setDisabled(True)
+            self.lineEdit_ADCGain.setDisabled(True)
+            self.lineEdit_ADCSpd.setDisabled(True)
 
     def incubation_mod_status(self):
         if self.checkBox_IncubMod.isChecked():
@@ -184,20 +546,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.comboBox_BlowerStat.setDisabled(False)
             self.checkBox_SampMod.setDisabled(True)
             self.checkBox_DataSmth.setDisabled(True)
-            self.checkBox_PMMod.setDisabled(True)
-            # self.checkBox_EChemMod.setDisabled(True)
-            # self.label_IP.setDisabled(True)
-            # self.label_FP.setDisabled(True)
-            # self.label_NS.setDisabled(True)
-            # self.label_PW.setDisabled(True)
-            # self.label_SI.setDisabled(True)
-            # self.label_EChemQuietT.setDisabled(True)
-            # self.lineEdit_IP.setDisabled(True)
-            # self.lineEdit_FP.setDisabled(True)
-            # self.lineEdit_NS.setDisabled(True)
-            # self.lineEdit_PW.setDisabled(True)
-            # self.lineEdit_SI.setDisabled(True)
-            # self.lineEdit_EQuietTime.setDisabled(True)
+            self.label_PDSets.setDisabled(True)
 
         else:
             self.label_IncubTime.setDisabled(True)
@@ -208,40 +557,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.comboBox_BlowerStat.setDisabled(True)
             self.checkBox_SampMod.setDisabled(False)
             self.checkBox_DataSmth.setDisabled(False)
-            self.checkBox_PMMod.setDisabled(False)
-            # self.checkBox_EChemMod.setDisabled(False)
-            # self.label_IP.setDisabled(False)
-            # self.label_FP.setDisabled(False)
-            # self.label_NS.setDisabled(False)
-            # self.label_PW.setDisabled(False)
-            # self.label_SI.setDisabled(False)
-            # self.label_EChemQuietT.setDisabled(False)
-            # self.lineEdit_IP.setDisabled(False)
-            # self.lineEdit_FP.setDisabled(False)
-            # self.lineEdit_NC.setDisabled(False)
-            # self.lineEdit_PW.setDisabled(False)
-            # self.lineEdit_SI.setDisabled(False)
-            # self.lineEdit_EQuietTime.setDisabled(False)
-
-    def pm_mod_status(self):
-        if self.checkBox_PMMod.isChecked():
-            self.label_SampReadMod.setDisabled(False)
-            self.comboBox_SampReadMod.setDisabled(False)
-            self.label_Vltg.setDisabled(False)
-            self.lineEdit_PMV.setDisabled(False)
-            self.label_adcG.setDisabled(False)
-            self.label_adcS.setDisabled(False)
-            self.lineEdit_ADCGain.setDisabled(False)
-            self.lineEdit_ADCSpd.setDisabled(False)
-        else:
-            self.label_SampReadMod.setDisabled(True)
-            self.comboBox_SampReadMod.setDisabled(True)
-            self.label_Vltg.setDisabled(True)
-            self.lineEdit_PMV.setDisabled(True)
-            self.label_adcG.setDisabled(True)
-            self.label_adcS.setDisabled(True)
-            self.lineEdit_ADCGain.setDisabled(True)
-            self.lineEdit_ADCSpd.setDisabled(True)
+            self.label_PDSets.setDisabled(False)
 
     def data_processing_mod_status(self):
         if self.checkBox_DataSmth.isChecked():
@@ -251,292 +567,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         else:
             self.comboBox_Smt.setDisabled(True)
             self.comboBox_SGorders.setDisabled(True)
-    
-    # class EChemSettings():
-        # def ip_chk(self):
-        #     try:
-        #         if not self.lineEdit_IP.text() or float(self.lineEdit_IP.text()) > 2.9 or float(
-        #                 self.lineEdit_IP.text()) < 0:
-        #             raise ValueError
-        #     except ValueError:
-        #         msg = QtWidgets.QMessageBox()
-        #         msg.setText("""Please enter a valid value between 0 and 2.9""")
-        #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #         msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #         msg.exec_()
-        #         self.lineEdit_IP.setText('0.0')
-        #     except Exception as e:
-        #         print(e)
-        #         self.lineEdit_IP.setText('0.0')
-
-        # def fp_chk(self):
-        #     try:
-        #         if not self.lineEdit_FP.text() or float(self.lineEdit_FP.text()) > 3 or float(
-        #                 self.lineEdit_FP.text()) < 0:
-        #             raise ValueError
-        #     except ValueError:
-        #         msg = QtWidgets.QMessageBox()
-        #         msg.setText("""Please enter a valid value between 0 and 3""")
-        #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #         msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #         msg.exec_()
-        #         self.lineEdit_FP.setText('0.0')
-
-        #     except Exception as e:
-        #         print(e)
-        #         self.lineEdit_FP.setText('0.0')
-
-        # def nc_chk(self):
-        #     try:
-        #         if not self.lineEdit_NC.text() or float(self.lineEdit_NC.text()) > 10 or float(
-        #                 self.lineEdit_NC.text()) < 1:
-        #             msg = QtWidgets.QMessageBox()
-        #             msg.setText("""Please enter a valid value between 1 and 10""")
-        #             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #             msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #             msg.exec_()
-        #             self.lineEdit_NC.setText('1')
-        #     except ValueError:
-        #         msg = QtWidgets.QMessageBox()
-        #         msg.setText("""Please enter a valid value between 1 and 10""")
-        #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #         msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #         msg.exec_()
-        #         self.lineEdit_NC.setText('1')
-        #     except Exception as e:
-        #         print(e)
-        #         self.lineEdit_NC.setText('1')
-
-        # def pw_chk(self):
-        #     try:
-        #         if not self.lineEdit_PW.text() or float(self.lineEdit_PW.text()) > 10 or float(
-        #                 self.lineEdit_PW.text()) < 1:
-        #             msg = QtWidgets.QMessageBox()
-        #             msg.setText("""Please enter a valid value between 1 and 10""")
-        #             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #             msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #             msg.exec_()
-        #             self.lineEdit_PW.setText('1')
-        #     except ValueError:
-        #         msg = QtWidgets.QMessageBox()
-        #         msg.setText("""Please enter a valid value between 1 and 10""")
-        #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #         msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #         msg.exec_()
-        #         self.lineEdit_PW.setText('1')
-        #     except Exception as e:
-        #         print(e)
-        #         self.lineEdit_PW.setText('1')
-
-        # def esi_chk(self):
-        #     try:
-        #         if not self.lineEdit_SI.text() or float(self.lineEdit_SI.text()) > 1.001 or float(
-        #                 self.lineEdit_SI.text()) < 0.001:
-        #             msg = QtWidgets.QMessageBox()
-        #             msg.setText("""Please enter a valid value between 0.001 and 1.1""")
-        #             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #             msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #             msg.exec_()
-        #             self.lineEdit_SI.setText('0.1')
-        #     except ValueError:
-        #         msg = QtWidgets.QMessageBox()
-        #         msg.setText("""Please enter a valid value between 0.001 and 1.1""")
-        #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #         msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #         msg.exec_()
-        #         self.lineEdit_SI.setText('0.1')
-        #     except Exception as e:
-        #         print(e)
-        #         self.lineEdit_SI.setText('0.1')
-
-        # def eqt_chk(self):
-        #     try:
-        #         if not self.lineEdit_EChemQT.text() or float(self.lineEdit_EChemQT.text()) > 10 or float(
-        #                 self.lineEdit_EChemQT.text()) < 0:
-        #             msg = QtWidgets.QMessageBox()
-        #             msg.setText("""Please enter a valid value between 0 and 10""")
-        #             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #             msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #             msg.exec_()
-        #             self.lineEdit_EChemQT.setText('1')
-        #     except ValueError:
-        #         msg = QtWidgets.QMessageBox()
-        #         msg.setText("""Please enter a valid value between 0 and 10""")
-        #         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        #         msg.setIcon(QtWidgets.QMessageBox.Warning)
-        #         msg.exec_()
-        #         self.lineEdit_EChemQT.setText('1')
-        #     except Exception as e:
-        #         print(e)
-        #         self.lineEdit_EChemQT.setText('1')
-
-    class SamplingMode():
-        def sqt_chk(self):
-            try:
-                if not self.lineEdit_SampQuietTime.text() or float(self.lineEdit_SampQuietTime.text()) > 10 or float(
-                        self.lineEdit_SampQuietTime.text()) < 0:
-                    msg = QtWidgets.QMessageBox()
-                    msg.setText("""Please enter a valid value between 0 and 10""")
-                    msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                    msg.setIcon(QtWidgets.QMessageBox.Warning)
-                    msg.exec_()
-                    self.lineEdit_SampQuietTime.setText('1')
-            except ValueError:
-                msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 0 and 10""")
-                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
-                self.lineEdit_SampQuietTime.setText('1')
-            except Exception as e:
-                print(e)
-                self.lineEdit_SampQuietTime.setText('1')
-
-        def sn_chk(self):
-            try:
-                if not self.lineEdit_SampNumbr.text() or float(self.lineEdit_SampNumbr.text()) > 10 or float(
-                        self.lineEdit_SampNumbr.text()) < 1:
-                    msg = QtWidgets.QMessageBox()
-                    msg.setText("""Please enter a valid value between 1 and 10""")
-                    msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                    msg.setIcon(QtWidgets.QMessageBox.Warning)
-                    msg.exec_()
-                    self.lineEdit_SampNumbr.setText('1')
-            except ValueError:
-                msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 1 and 10""")
-                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
-                self.lineEdit_SampNumbr.setText('1')
-            except Exception as e:
-                print(e)
-                self.lineEdit_SampNumbr.setText('1')
-
-        def st_chk(self):
-            try:
-                if not self.lineEdit_SampT.text() or float(self.lineEdit_SampT.text()) > 10 or float(
-                        self.lineEdit_SampT.text()) < 0.1:
-                    msg = QtWidgets.QMessageBox()
-                    msg.setText("""Please enter a valid value between 0.1 and 10""")
-                    msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                    msg.setIcon(QtWidgets.QMessageBox.Warning)
-                    msg.exec_()
-                    self.lineEdit_SampT.setText('1')
-            except ValueError:
-                msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 0.1 and 10""")
-                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
-                self.lineEdit_SampT.setText('1')
-            except Exception as e:
-                print(e)
-                self.lineEdit_SampT.setText('1')
-
-        def csi_chk(self):
-            pass
-        
-        def r2avg_chk(self):
-            pass
-    
-    class IncubationMode():
-        def itm_chk(self):
-            try:
-                if not self.lineEdit_IncubT.text() or float(self.lineEdit_IncubT.text()) > 180 or float(
-                        self.lineEdit_IncubT.text()) < 1:
-                    msg = QtWidgets.QMessageBox()
-                    msg.setText("""Please enter a valid value between 1 and 180""")
-                    msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                    msg.setIcon(QtWidgets.QMessageBox.Warning)
-                    msg.exec_()
-                    self.lineEdit_IncubT.setText('1')
-            except ValueError:
-                msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 1 and 180""")
-                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
-                self.lineEdit_IncubT.setText('1')
-            except Exception as e:
-                print(e)
-                self.lineEdit_IncubT.setText('1')
-
-        def itp_chk(self):
-            pass
-
-        def bf_chk(self):
-            pass
-
-    class PhotodetectionSettings():
-
-        def adcr_chk(self):
-            pass
-            
-        def pmv_chk(self):
-            try:
-                if not self.lineEdit_PmV.text() or float(self.lineEdit_PmV.text()) > 900 or float(
-                        self.lineEdit_PmV.text()) < 100:
-                    msg = QtWidgets.QMessageBox()
-                    msg.setText("""Please enter a valid value between 100 and 900""")
-                    msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                    msg.setIcon(QtWidgets.QMessageBox.Warning)
-                    msg.exec_()
-                    self.lineEdit_PmV.setText('100')
-            except ValueError:
-                msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 100 and 900""")
-                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
-                self.lineEdit_PmV.setText('100')
-            except Exception as e:
-                print(e)
-                self.lineEdit_PmV.setText('100')
-
-        def adcg_chk(self):
-            try:
-                if not self.lineEdit_adcGn.text() or int(self.lineEdit_adcGn.text()) not in [1, 2, 64, 128]:
-                    msg = QtWidgets.QMessageBox()
-                    msg.setText("""Please enter a valid value: 1, 2, 64, 128""")
-                    msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                    msg.setIcon(QtWidgets.QMessageBox.Warning)
-                    msg.exec_()
-                    self.lineEdit_adcGn.setText('1')
-            except ValueError:
-                msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value: 1, 2, 64, 128""")
-                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
-                self.lineEdit_adcGn.setText('1')
-            except Exception as e:
-                print(e)
-                self.lineEdit_adcGn.setText('1')
-
-        def adcs_chk(self):
-            try:
-                if not self.lineEdit_adcSpd.text() or int(self.lineEdit_adcSpd.text()) not in [1, 2]:
-                    msg = QtWidgets.QMessageBox()
-                    msg.setText("""Please enter a valid value: 1, 2""")
-                    msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                    msg.setIcon(QtWidgets.QMessageBox.Warning)
-                    msg.exec_()
-                    self.lineEdit_adcSpd.setText('1')
-            except ValueError:
-                msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value: 1, 2""")
-                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
-                self.lineEdit_adcSpd.setText('1')
-            except Exception as e:
-                print(e)
-                self.lineEdit_adcSpd.setText('1')
-        
-    class DataSmoothing():
-        def smth_chk(self):
-            pass 
  
     def wifi_check(self):
         self.textBrowser.append("Trying to establishing connection via Wifi...")
@@ -629,20 +659,20 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         # # msg.exec_()
 
     def serial_sndr_recvr(self, command):
-        delay = 1000  # in ms
+        # delay = 1000  # in ms
         print('Waiting for invitation', end='')
         self.statusbar.showMessage('Waiting for invitation')
         while b'sr_receiver: READY\n' not in self.operator.read_all():
-            # self.timer.singleShot(1000, lambda: print('.', end=''))
-            print('.', end='')
-            QtTest.QTest.qWait(delay)
+            self.timer.singleShot(1000, lambda: print('.', end=''))
+            # print('.', end='')
+            # QtTest.QTest.qWait(delay)
         print('\nInvited, sending GO!')
         self.statusbar.showMessage('Invited, sending GO!')
 
         while b'got it.\n' not in self.operator.read_all():
-            self.operator.write('go#'.encode())
-            # self.timer.singleShot(1000, lambda: self.operator.write('go#'.encode()))
-            QtTest.QTest.qWait(delay)
+            # self.operator.write('go#'.encode())
+            self.timer.singleShot(1000, lambda: self.operator.write('go#'.encode()))
+            # QtTest.QTest.qWait(delay)
 
         pck_size_tot = 0
         t0 = time.time()
@@ -661,13 +691,14 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         ### SENDER ###
         try:
             if len(command) > self.packet_size:
-                print('Data larger than {} chars, calling Chunker...'.format(self.packet_size))
+                print('Data larger than {} chars, calling Chopper...'.format(self.packet_size))
                 for idx, data in enumerate([chunk for chunk in chopper(command)]):
                     print('packet[{}]: {} --- length: {} chars --- size: {}'.format(idx, data, len(data),
                                                                                     sys.getsizeof(data)))
                     self.operator.write(data.encode())
-                    QtTest.QTest.qWait(delay)
-                    resp = self.operator.read_all()
+                    # QtTest.QTest.qWait(delay)
+                    # resp = self.operator.read_all()
+                    resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
                     print(resp)
                     if 'EOF received.\n' in resp.decode():
                         print('_LucidSens: EOF received in first run, file was sent successfully.')
@@ -680,8 +711,9 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                         while True:
                             print('.', end='')
                             self.operator.write(data.encode())
-                            QtTest.QTest.qWait(delay)
-                            resp = self.operator.read_all()
+                            # QtTest.QTest.qWait(delay)
+                            # resp = self.operator.read_all()
+                            resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
                             print(resp)
                             if 'EOF received.\n' in resp.decode():
                                 print('EOF received in retry, file was successfully sent.')
@@ -692,17 +724,18 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                                 pck_size_tot += sys.getsizeof(data)
                                 break
                             else:
-                                QtTest.QTest.qWait(delay)
+                                # QtTest.QTest.qWait(delay)
                                 pass
                         print('packet eventually received by LS.')
 
             else:
                 self.statusbar.showMessage('Sending...')
-                print('Data not larger than {} chars, no need to call the Chunker.'.format(self.packet_size))
+                print('Data not larger than {} chars, no need to call the Chopper.'.format(self.packet_size))
                 command += '*#'
                 self.operator.write(command.encode())
-                QtTest.QTest.qWait(delay)
-                resp = self.operator.read_all()
+                # QtTest.QTest.qWait(delay)
+                # resp = self.operator.read_all()
+                resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
                 print(resp)
                 if 'EOF received.' in resp.decode():
                     print('\n_LucidSens: EOF received by LS on the first try.')
@@ -714,8 +747,10 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     while True:
                         self.operator.write(command.encode())
                         print('.', end='')
-                        QtTest.QTest.qWait(delay)
-                        resp = self.operator.read_all()
+                        # QtTest.QTest.qWait(delay)
+                        # resp = self.operator.read_all()
+                        resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
+
                         if 'EOF received.' in resp.decode():
                             print('\n_LucidSens: EOF received in retry.')
                             pck_size_tot += sys.getsizeof(command)
@@ -725,7 +760,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                             pck_size_tot += sys.getsizeof(command)
                             break
                         else:
-                            QtTest.QTest.qWait(delay)
+                            # QtTest.QTest.qWait(delay)
                             pass
                     self.statusbar.showMessage('Command was sent.')
                     print('Packet eventually received by LucidSens.')
@@ -737,8 +772,10 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.statusbar.showMessage('Receiving...')
             while '*' not in self.content:
                 try:
-                    QtTest.QTest.qWait(delay)
-                    data = self.operator.read_all()
+                    # QtTest.QTest.qWait(delay)
+                    # data = self.operator.read_all()
+                    data = self.timer.singleShot(1000, lambda: self.operator.read_all())
+
                     data_decd = data.decode()
                     # print(data_decd)
                     if '#' in data_decd and data_decd[:-2] not in self.content:
@@ -757,7 +794,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                         else:
                             pass
                     else:
-                        QtTest.QTest.qWait(delay)
+                        # QtTest.QTest.qWait(delay)
                         pass
                 except:
                     pass
@@ -893,36 +930,33 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         
     def run(self):
         command = ({'header': 'run'})
-        command.update(
-            {'body': {'ip': float(self.lineEdit_IP.text()) if not self.checkBox_IncubMod.isChecked() else '',
-                      'fp': float(self.lineEdit_FP.text()) if not self.checkBox_IncubMod.isChecked() else '',
-                      'nc': float(self.lineEdit_NC.text()) if not self.checkBox_IncubMod.isChecked() else '',
-                      'pw': float(self.lineEdit_PW.text()) if not self.checkBox_IncubMod.isChecked() else '',
-                      'si': float(self.lineEdit_SI.text()) if not self.checkBox_IncubMod.isChecked() else '',
-                      'eqt': float(
-                          self.lineEdit_EChemQT.text()) if not self.checkBox_IncubMod.isChecked() else '',
+        if self.checkBox_IncubMod.isChecked():
+            command.update({'body': {
+                'it': float(self.lineEdit_IncubTime.text()),
+                'ip': float(self.lineEdit_IncubTemp.text()),
+                'bf': str(self.comboBox_BlowerStat.currentText())}})
 
-                      'sqt': float(self.lineEdit_SampQuietTime.text()) if self.checkBox_SampMod.isChecked() else '',
-                      'sn': float(self.lineEdit_SampNumbr.text()) if self.checkBox_SampMod.isChecked() else '',
-                      'st': float(self.lineEdit_SampT.text()) if self.checkBox_SampMod.isChecked() else '',
+        if self.checkBox_SampMod.isChecked():
+            command.update({'body': {
+                'sqt': float(self.lineEdit_SampQuietTime.text()),
+                'sn': int(self.lineEdit_NumbSamps.text()),
+                'st': float(self.lineEdit_SampTime.text()),
+                'si': float(self.lineEdit_SampIntrvls.text()),
+                'r2avg': int(self.lineEdit_Raw2Avrg.text()),
+                'pmr': str(self.comboBox_SampReadMod.currentText()),
+                'pv': float(self.lineEdit_PMV.text()),
+                'ag': int(self.lineEdit_ADCGain.text()),
+                'as': int(self.lineEdit_ADCSpd.text())}})
 
-                      'it': float(self.lineEdit_IncubT.text()) if self.checkBox_IncubMod.isChecked() else '',
-
-                      'pv': int(self.lineEdit_PmV.text()) if self.checkBox_PmMod.isChecked() else '',
-
-                      'ag': int(self.lineEdit_adcGn.text()) if self.checkBox_SigAmp.isChecked() else 1,
-                      'as': int(self.lineEdit_adcSpd.text()) if self.checkBox_SigAmp.isChecked() else 1,
-                      }})
         jsnd_cmd = json.dumps(command)
-        # print('collected command parameters.')
-
+        print(jsnd_cmd)
         if self.serial_connection:
             # print('Sending command via serial port...')
             self.serial_sndr_recvr(jsnd_cmd)
 
-        elif self.wifi_connection:
-            print('Sending command via wifi port...')
-            self.wifi_sndr_recvr(jsnd_cmd)
+        # elif self.wifi_connection:
+        #     print('Sending command via wifi port...')
+        #     self.wifi_sndr_recvr(jsnd_cmd)
 
         else:
             self.textBrowser.append("No available connections to the MinimalSens.")
@@ -1053,7 +1087,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             p2.showGrid(x=True, y=True, alpha=1)
             p2.setLabel('bottom', 'x', **{'color': 'white', 'font-size': '12px'})
             p2.setLabel('left', 'f(x)', **{'color': 'white', 'font-size': '12px'})
-
 
 class MySplashScreen(QtWidgets.QSplashScreen):
 
