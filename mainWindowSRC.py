@@ -1,22 +1,18 @@
 import sys, os, time, json, serial, socket
 from PyQt5 import QtWidgets, QtTest, QtCore, QtGui
-from PyQt5.QtCore import pyqtSlot, pyqtSignal
+from PyQt5.QtCore import pyqtSlot, pyqtSignal, QSettings
 import pyqtgraph as pg
 import matplotlib.pyplot as plt
 import numpy as np
 import serial.tools.list_ports as lp
 import csv
-import qdarkstyle
+import qdarkstyle, qdarkgraystyle
 import threading
 import traceback
+import mainWindowGUI, WifiWindow, PreferencesWindow
 
-import mainWindowGUI
-
-# Default IP/Port on LucidSens 
-board_ip = "192.168.1.95"
-board_port = 3175
 __APPNAME__ = "LucidSens"
-VERSION = "0.02"
+VERSION = "0.03"
 
 class WorkerSignals(QtCore.QObject):
     '''
@@ -56,15 +52,59 @@ class Worker(QtCore.QRunnable):
         finally:
             self.signals.DONE.emit()
 
+class Delegate(QtWidgets.QStyledItemDelegate):
+    """Creates a deleagte for the Preferences options"""
+    def editorEvent(self, event, model, option, index):
+        value = QtWidgets.QStyledItemDelegate.editorEvent(self, event, model, option, index)        
+        if value:
+            if event.type() == QtCore.QEvent.MouseButtonRelease:
+                if index.data(QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked:
+                    parent = index.parent()
+                    for i in range(model.rowCount(parent)):
+                        if i != index.row():
+                            ix = parent.child(i, 0)
+                            model.setData(ix, QtCore.Qt.Unchecked, QtCore.Qt.CheckStateRole)
+        return value
+
+class Preferences(QtWidgets.QMainWindow, PreferencesWindow.Ui_Preferences):
+    """Preferences Window"""
+    def __init__(self):
+        super().__init__()
+        self.setupUi(self)
+        self.treeWidget.setHeaderHidden(True)
+        self.treeWidget.setItemDelegate(Delegate())
+        self.treeWidget.expandAll()
+        self.settings = QSettings('Theme')
+        self._theme = self.settings.value('Theme')
+        if self._theme:
+            self.treeWidget.setCurrentItem(self.treeWidget.topLevelItem(0))
+            model = self.treeWidget.model()
+            index = self.treeWidget.currentIndex()
+            if model.data(index) == 'Themes':
+                index = self.treeWidget.currentIndex().child(0,0)
+            parent_idx = index.parent()
+            for i in range(model.rowCount(parent_idx)):
+                idx = parent_idx.child(i, 0)
+                if model.data(idx) == self._theme:
+                    model.setData(idx, QtCore.Qt.Checked, QtCore.Qt.CheckStateRole)
+                else:
+                    pass
+
+class WifiSettings(QtWidgets.QWidget, WifiWindow.Ui_WifiSettings):
+    """Wifi Window"""
+    def __init__(self):
+        super().__init__()
+        self.setupUi(self)
+
 class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
+    """Main window"""
     def __init__(self, parent=None):
         super(Form, self).__init__(parent)
 
-        self.packet_size = 128
+        self.packet_size = 256
         self.content = ''
         self.timer = QtCore.QTimer()
         self.threadpool = QtCore.QThreadPool()
-        # print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
         self.serial_connection = False
         self.wifi_connection = False
@@ -73,25 +113,30 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.setupUi(self)
         self.actionOpen.triggered.connect(self.open)
         self.actionNew.triggered.connect(self.new)
+        self.actionStop.triggered.connect(self.stop)
         self.actionExit.triggered.connect(self.exit)
         self.actionAbout_Us.triggered.connect(self.about_us)
         self.actionHelp.triggered.connect(self.help)
+        self.actionWifi.triggered.connect(self.wifi_panel) 
         self.RunButton.clicked.connect(self.run)
         self.TestButton.clicked.connect(self.run_test)
         self.actionConnection.triggered.connect(self.connection_status)
+        self.actionPreferences.triggered.connect(self.preferences)
+        
         self.graphicsView.clear()
-        # self.vb = pg.ViewBox()
-        # self.graphicsView.setCentralItem(self.vb)
-        # img = "/Users/aminhb/PycharmProjects/MinimalSensGUI_v0.01/MinimalSensGUI_v0.01/Logo_Splash.JPG"
-        # img_data = np.asarray(Image.open(img))
-        # image = pg.ImageItem(img_data)
-        # self.vb.addItem(image)
         p0 = self.graphicsView.addPlot()
         p0.showAxis('right', show=True)
         p0.showAxis('top', show=True)
         p0.showGrid(x=True, y=True, alpha=1)
-        self.textBrowser.append("<font size='4' color='blue'>" + "Lucid" + "</font>" + "<font size='4' color='orange'>" + "Sens" + "</font>" + "<font size='2' color='white'>" + " (Chemiluminescence-wing)" + "</font>")
-        intro_txt = """\nVersion {}\nDeveloped by M. Amin Haghighatbin\n中国科学技术大学\nUniversity of Science and Technology of China (USTC)\n--------------------------------------------------------------""".format(VERSION)
+        
+        self.textBrowser.append(self.pen(3, 'cyan') +  "Lucid" + "</font>" + self.pen(3, 'orange') + "Sens" + "</font>" + self.pen(2, 'white') + " (Chemiluminescence-wing)" + "</font>")
+        self.textBrowser.append(self.pen(2, 'green') + "-"*75)
+        self.textBrowser.append(self.pen(2, 'green') + f"Version {VERSION}")
+        self.textBrowser.append(self.pen(2, 'green') +"Developed by M. Amin Haghighatbin")
+        self.textBrowser.append(self.pen(2, 'green') +"中国科学技术大学")
+        self.textBrowser.append(self.pen(2, 'green') +"University of Science and Technology of China (USTC)")
+        self.textBrowser.append(self.pen(2, 'green') +"-"* 75)
+
         self.checkBox_SampMod.stateChanged.connect(self.sampling_mod_status)
         self.checkBox_IncubMod.stateChanged.connect(self.incubation_mod_status)
         self.checkBox_DataSmth.stateChanged.connect(self.data_processing_mod_status)
@@ -124,9 +169,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
 
         # Data Smooting
         self.comboBox_SGorders.currentIndexChanged.connect(self.smth_chk)
-
-        intro_worker = Worker(self.writer, intro_txt, color='yellow')
-        self.threadpool.start(intro_worker)
 
     # def ip_chk(self):
     #     try:
@@ -248,7 +290,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
     def sqt_chk(self):
         """Sampler Quiet Time: A quiet time before initialising the aquisition, no data will be collected during this time."""
         try:
-            if not self.lineEdit_SampQuietTime.text() or float(self.lineEdit_SampQuietTime.text()) > 10 or float(self.lineEdit_SampQuietTime.text()) < 0:
+            if not self.lineEdit_SampQuietTime.text() or float(self.lineEdit_SampQuietTime.text()) > 100 or float(self.lineEdit_SampQuietTime.text()) < 0:
                 msg = QtWidgets.QMessageBox()
                 msg.setText("""Please enter a valid value between 0 and 100""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
@@ -256,15 +298,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                 msg.exec_()
                 self.lineEdit_SampQuietTime.setText('1')
 
-            # if not self.lineEdit_SampQuietTime.text() or float(self.lineEdit_SampQuietTime.text()) > 10 or float(
-            #         self.lineEdit_SampQuietTime.text()) < 0:
-            #     print('quiet time in try')
-            #     msg = QtWidgets.QMessageBox()
-            #     msg.setText("""Please enter a valid value between 0 and 100""")
-            #     msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-            #     msg.setIcon(QtWidgets.QMessageBox.Warning)
-            #     msg.exec_()
-            #     self.lineEdit_SampQuietTime.setText('1')
         except ValueError:
             msg = QtWidgets.QMessageBox()
             msg.setText("""Please enter a valid value between 0 and 100""")
@@ -301,17 +334,17 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
     def st_chk(self):
         """Sampling Acquistion time: The total time that the photodetection module will be collecting data from each sample."""
         try:
-            if not self.lineEdit_SampTime.text() or float(self.lineEdit_SampTime.text()) > 10 or float(
+            if not self.lineEdit_SampTime.text() or float(self.lineEdit_SampTime.text()) > 120 or float(
                     self.lineEdit_SampTime.text()) < 0.1:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 0.1 and 100""")
+                msg.setText("""Please enter a valid value between 0.1 and 120""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
                 msg.exec_()
                 self.lineEdit_SampTime.setText('1')
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 0.1 and 100""")
+            msg.setText("""Please enter a valid value between 0.1 and 120""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
             msg.exec_()
@@ -491,23 +524,23 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         return [self.algo, self.order] 
 
     def progress_status(self, n):
-        self.statusbar.showMessage("{}%".format(n))
+        self.statusbar.showMessage(f'{n}%')
 
     def error_report(self, tpl):
-        self.textBrowser.append('ERROR:\n{}'.format(tpl))
+        self.textBrowser.append(f'THREAD: ERROR:\n{tpl}')
 
     def thread_completed(self):
-        self.statusbar.showMessage("Done")
+        self.statusbar.showMessage("THREAD: Done.")
 
-    def writer(self, txt, progress_status, font_size=8, color='green'):
-        self.textBrowser.setTextColor(QtGui.QColor('{}'.format(color)))
+    def writer(self, txt, font_size=8, color='green'):
+        self.textBrowser.setTextColor(QtGui.QColor(f'{color}'))
         self.textBrowser.setFontPointSize(10)
         for idx, char in enumerate(txt):
             self.textBrowser.insertPlainText(char)
-            QtTest.QTest.qWait(10)
+            QtTest.QTest.qWait(20)
         
     def pen(self, size, color):
-        return "<font size='{}' color='{}'>".format(size, color)
+        return f"<font size='{size}' color='{color}'>"
        
     def sampling_mod_status(self):
         if self.checkBox_SampMod.isChecked():
@@ -516,25 +549,52 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.lineEdit_SampTime.setDisabled(False)
             self.lineEdit_SampIntrvls.setDisabled(False)
             self.lineEdit_Raw2Avrg.setDisabled(False)
-            self.checkBox_IncubMod.setDisabled(True)
+
+            self.label_SampQuietT.setDisabled(False)
+            self.label_NoSamp.setDisabled(False)
+            self.label_SampT.setDisabled(False)
+            self.label_SampIntrvls.setDisabled(False)
+            self.label_Raw2Avrg.setDisabled(False)
+
             self.label_PDSets.setDisabled(False)
+
+            self.label_SampReadMod.setDisabled(False)
+            self.label_Vltg.setDisabled(False)
+            self.label_adcG.setDisabled(False)
+            self.label_adcS.setDisabled(False)
+
             self.comboBox_SampReadMod.setDisabled(False)
             self.lineEdit_PMV.setDisabled(False)
             self.lineEdit_ADCGain.setDisabled(False)
             self.lineEdit_ADCSpd.setDisabled(False)
 
-        else:   
+            self.checkBox_IncubMod.setDisabled(True)
+        else:
             self.lineEdit_SampQuietTime.setDisabled(True)
             self.lineEdit_NumbSamps.setDisabled(True)
             self.lineEdit_SampTime.setDisabled(True)
             self.lineEdit_SampIntrvls.setDisabled(True)
             self.lineEdit_Raw2Avrg.setDisabled(True)
-            self.checkBox_IncubMod.setDisabled(False)
+
+            self.label_SampQuietT.setDisabled(True)
+            self.label_NoSamp.setDisabled(True)
+            self.label_SampT.setDisabled(True)
+            self.label_SampIntrvls.setDisabled(True)
+            self.label_Raw2Avrg.setDisabled(True)
+
             self.label_PDSets.setDisabled(True)
+
+            self.label_SampReadMod.setDisabled(True)
+            self.label_Vltg.setDisabled(True)
+            self.label_adcG.setDisabled(True)
+            self.label_adcS.setDisabled(True)
+
             self.comboBox_SampReadMod.setDisabled(True)
             self.lineEdit_PMV.setDisabled(True)
             self.lineEdit_ADCGain.setDisabled(True)
             self.lineEdit_ADCSpd.setDisabled(True)
+
+            self.checkBox_IncubMod.setDisabled(False)
 
     def incubation_mod_status(self):
         if self.checkBox_IncubMod.isChecked():
@@ -568,15 +628,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.comboBox_Smt.setDisabled(True)
             self.comboBox_SGorders.setDisabled(True)
  
-    def wifi_check(self):
-        self.textBrowser.append("Trying to establishing connection via Wifi...")
-        response = os.system('ping -c 1 ' + board_ip)
-        if response == 0:
-            self.wifi_connection = True
-        else:
-            self.wifi_connection = False
-        return self.wifi_connection
-
     def serial_port(self):
         try:
             if lp.comports():
@@ -591,8 +642,13 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     if "CP210x" in str(port):
                         serial_port = str(port.device)
 
-                serial_chk_worker = Worker(self.writer,"\nEstablishing connection via serial port\nScanning serial ports...\nAvailable port: {}\n".format(serial_port), color='green')
-                self.threadpool.start(serial_chk_worker)
+                # serial_chk_worker = Worker(self.writer,"\nEstablishing connection via serial port\nScanning serial ports...\nAvailable port: {}\n".format(serial_port), color='green')
+                # self.threadpool.start(serial_chk_worker)
+                # self.textBrowser.append("\nEstablishing connection via serial port\nScanning serial ports...")
+                # self.textBrowser.append("\nAvailable port: {}\n".format(serial_port))
+                self.writer("\nEstablishing connection via serial port\nScanning serial ports...")
+                self.writer(f"\nAvailable port: {serial_port}\n")
+
                 if serial_port:
                     # worker_serial2 = Worker(self.writer, "Connection established.\n--------------------------------------".format(serial_port))
                     # self.timer.singleShot(6000, lambda: self.threadpool.start(worker_serial2))
@@ -625,7 +681,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             QtTest.QTest.qWait(1000)
             self.textBrowser.append(
                 self.pen(2, 'cyan') + "Connection established via Serial port." + "</font>")
-            self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connect.icns"))
+            self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connection_green.icns"))
 
         else:
             self.actionConnection.setIcon(QtGui.QIcon(":/Icons/disconnect.icns"))
@@ -659,20 +715,21 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         # # msg.exec_()
 
     def serial_sndr_recvr(self, command):
-        # delay = 1000  # in ms
+        self.content = ''
+        delay = 1000  # in ms
         print('Waiting for invitation', end='')
         self.statusbar.showMessage('Waiting for invitation')
         while b'sr_receiver: READY\n' not in self.operator.read_all():
-            self.timer.singleShot(1000, lambda: print('.', end=''))
-            # print('.', end='')
-            # QtTest.QTest.qWait(delay)
+            # self.timer.singleShot(1000, lambda: print('.', end=''))
+            print('.', end='')
+            QtTest.QTest.qWait(delay)
         print('\nInvited, sending GO!')
         self.statusbar.showMessage('Invited, sending GO!')
 
         while b'got it.\n' not in self.operator.read_all():
-            # self.operator.write('go#'.encode())
-            self.timer.singleShot(1000, lambda: self.operator.write('go#'.encode()))
-            # QtTest.QTest.qWait(delay)
+            self.operator.write('go#'.encode())
+            # self.timer.singleShot(1000, lambda: self.operator.write('go#'.encode()))
+            QtTest.QTest.qWait(delay)
 
         pck_size_tot = 0
         t0 = time.time()
@@ -691,29 +748,28 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         ### SENDER ###
         try:
             if len(command) > self.packet_size:
-                print('Data larger than {} chars, calling Chopper...'.format(self.packet_size))
+                print(f'Data larger than {self.packet_size} chars, calling Chopper...')
                 for idx, data in enumerate([chunk for chunk in chopper(command)]):
-                    print('packet[{}]: {} --- length: {} chars --- size: {}'.format(idx, data, len(data),
-                                                                                    sys.getsizeof(data)))
+                    print(f'packet[{idx}]: {data} --- length: {len(data)} chars --- size: {sys.getsizeof(data)}')
                     self.operator.write(data.encode())
-                    # QtTest.QTest.qWait(delay)
-                    # resp = self.operator.read_all()
-                    resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
+                    QtTest.QTest.qWait(delay)
+                    resp = self.operator.read_all()
+                    # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
                     print(resp)
                     if 'EOF received.\n' in resp.decode():
                         print('_LucidSens: EOF received in first run, file was sent successfully.')
                         pck_size_tot += sys.getsizeof(data)
                     elif b'got it.\n' in resp:
-                        print('packet [{}] received on the first try.'.format(idx))
+                        print(f'packet [{ixd}] received on the first try.')
                         pck_size_tot += sys.getsizeof(data)
                     else:
                         print('sending packet again: {}', end='')
                         while True:
                             print('.', end='')
                             self.operator.write(data.encode())
-                            # QtTest.QTest.qWait(delay)
-                            # resp = self.operator.read_all()
-                            resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
+                            QtTest.QTest.qWait(delay)
+                            resp = self.operator.read_all()
+                            # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
                             print(resp)
                             if 'EOF received.\n' in resp.decode():
                                 print('EOF received in retry, file was successfully sent.')
@@ -724,18 +780,18 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                                 pck_size_tot += sys.getsizeof(data)
                                 break
                             else:
-                                # QtTest.QTest.qWait(delay)
+                                QtTest.QTest.qWait(delay)
                                 pass
                         print('packet eventually received by LS.')
 
             else:
                 self.statusbar.showMessage('Sending...')
-                print('Data not larger than {} chars, no need to call the Chopper.'.format(self.packet_size))
+                print(f'Data not larger than {self.packet_size} chars, no need to call the Chopper.')
                 command += '*#'
                 self.operator.write(command.encode())
-                # QtTest.QTest.qWait(delay)
-                # resp = self.operator.read_all()
-                resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
+                QtTest.QTest.qWait(delay)
+                resp = self.operator.read_all()
+                # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
                 print(resp)
                 if 'EOF received.' in resp.decode():
                     print('\n_LucidSens: EOF received by LS on the first try.')
@@ -743,20 +799,20 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     pck_size_tot += sys.getsizeof(command)
                 
                 else:
-                    print('sending packet again', end='')
+                    # print('sending packet again', end='')
                     while True:
                         self.operator.write(command.encode())
                         print('.', end='')
-                        # QtTest.QTest.qWait(delay)
-                        # resp = self.operator.read_all()
-                        resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-
+                        QtTest.QTest.qWait(delay)
+                        resp = self.operator.read_all()
+                        # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
+                        print(resp)
                         if 'EOF received.' in resp.decode():
                             print('\n_LucidSens: EOF received in retry.')
                             pck_size_tot += sys.getsizeof(command)
                             break
                         elif b'got it.' in self.operator.read_all():
-                            print('\n_LucidSens: packet sent in retry.')
+                            # print('\n_LucidSens: packet sent in retry.')
                             pck_size_tot += sys.getsizeof(command)
                             break
                         else:
@@ -765,23 +821,22 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     self.statusbar.showMessage('Command was sent.')
                     print('Packet eventually received by LucidSens.')
 
-            print('Took {} seconds to {} bytes.'.format((time.time() - t0), pck_size_tot))
+            print(f'Took {(time.time() - t0)} seconds to {pck_size_tot} bytes.')
             
             ### RECEIVER ###
-            print('Receiving', end='')
+            # print('\nReceiving', end='')
             self.statusbar.showMessage('Receiving...')
             while '*' not in self.content:
                 try:
-                    # QtTest.QTest.qWait(delay)
-                    # data = self.operator.read_all()
-                    data = self.timer.singleShot(1000, lambda: self.operator.read_all())
-
+                    QtTest.QTest.qWait(delay)
+                    data = self.operator.read_all()
+                    # data = self.timer.singleShot(1000, lambda: self.operator.read_all())
                     data_decd = data.decode()
-                    # print(data_decd)
+                    print(data_decd)
                     if '#' in data_decd and data_decd[:-2] not in self.content:
                         if data_decd[-2] == '*':
                             self.content += data_decd[:-1]
-                            print('Response received!')
+                            print('\nResponse received!')
                             self.statusbar.showMessage('Response is received')
                             # self.operator.write('EOF received.#'.encode())
                             break
@@ -790,24 +845,36 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                             self.content += data_decd[:-2]
                             self.operator.write('got it.#'.encode())
                             print('.', end='')
-                            # QtTest.QTest.qWait(delay)
+                            QtTest.QTest.qWait(delay)
                         else:
                             pass
                     else:
-                        # QtTest.QTest.qWait(delay)
+                        QtTest.QTest.qWait(delay)
                         pass
                 except:
                     pass
-            print('\nResponse: {}'.format(self.content))
+            print(f'\nResponse: {self.content}')
             if '*' in self.content:
                 self.operator.write('EOF received.#'.encode())
-                # print('Content: {}\n'.format(content))
-                # print('length: {} chars\n'.format(len(content)))
-                raw_cmd = open('resp.txt', 'w')
-                raw_cmd.write(self.content[:-1])
-                raw_cmd.close()
+                with open('resp.txt', 'w') as raw_resp:
+                    raw_resp.write(self.content[:-1])
                 print('Processing the response.')
                 self.statusbar.showMessage('Processing the response...')
+                with open('resp.txt', 'r') as resp:
+                    for line in resp:
+                        if 'LS: wfcreds was updated.' in line:
+                            print('wfcreds created.')
+                            self.textBrowser.append('Wifi credetntials were updated on LucidSens.')
+                            # resp.close()
+                            # return "wfcreds created."
+                            # message
+                        if 'LS: incubation initialised.' in line:
+                            self.textBrowser.append('Incubation initialised.')
+                            print('incubation initiated.')
+                            # return 'incubation initialised.' 
+                        else:
+                            print(f'response: {line}')
+                            # return line
 
         except KeyboardInterrupt:
             print('Aborted!')
@@ -815,64 +882,18 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             print(e)
         return 'Exiting Sender_Receiver.'
 
-    def wifi_sndr_recvr(self, command):
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((board_ip, board_port))
-            # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            #     sock.connect((board_ip, board_port))
-            self.textBrowser.append("sending out wifi invitation signal...")
-            QtTest.QTest.qWait(1000)
-
-            sock.sendall(command)
-
-            def recvall(sock):
-                BUFF_SIZE = 4096  # 4 KiB
-                data = b''
-                while True:
-                    part = sock.recv(BUFF_SIZE)
-                    data += part
-                    if len(part) < BUFF_SIZE:
-                        # either 0 or end of data.py
-                        break
-                return data
-
-            data = recvall(sock)
-
-            if "body" not in data.decode():
-                attempts = 0
-                while attempts < 5:
-                    print("{}/5 attempt failed...re-trying.".format(attempts))
-                    sock.sendall('a'.encode())
-                    print("test command is sent.")
-                    data = sock.recv(1024)
-                    QtTest.QTest.qWait(1000)
-                    if "body" in data.decode():
-                        break
-                    else:
-                        attempts += 1
-
-            parsed_data = json.loads(data.decode())
-            self.test(parsed_data["body"])
-
-        except Exception as e:
-            print(e)
-
-        except KeyboardInterrupt:
-            print("Aborted!")
-
     def test(self):
         while not os.path.exists('resp.txt'):
             pass
         try:
             with open('resp.txt', 'r') as f:
-                    for line in f:
-                        if eval(line)['header'] == 'test_astroid':
-                            print('Test_Astroid list is received, illustrating...')
-                            list_t = eval(line)['body']
-                        else:
-                            print('Something is wrong with the received list.')
-                    f.close()
+                for line in f:
+                    if eval(line)['header'] == 'test_astroid':
+                        print('Test_Astroid list is received, illustrating...')
+                        list_t = eval(line)['body']
+                    else:
+                        print('Something is wrong with the received list.')
+
             self.graphicsView.clear()
             p2 = self.graphicsView.addPlot()
             p2.showAxis('right', show=True)
@@ -892,8 +913,9 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     QtTest.QTest.qWait(10)
 
             txt = "\nSerial port is up and running.\n----------------------------------------"
-            txt_worker = Worker(self.writer, txt, color='green')
-            self.threadpool.start(txt_worker)
+            # txt_worker = Worker(self.writer, txt, color='green')
+            self.textBrowser.append("\nSerial port is up and running.\n----------------------------------------")
+            # self.threadpool.start(txt_worker)
             
             p2.clear()
             p2.showGrid(x=True, y=True, alpha=1)
@@ -906,9 +928,10 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             os.remove("resp.txt")
 
         command = ({'header': 'test'})
-        command.update({'body': {'it': 10}})
+        command.update({'body': {'it': int(self.comboBox.currentText())}})
         jsnd_cmd = json.dumps(command)
-        jsnd_cmd += '*#'
+        # jsnd_cmd += '*#'
+        print(jsnd_cmd, type(jsnd_cmd))
 
         if self.serial_connection:
             test_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
@@ -916,7 +939,10 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             # test_worker.signals.PROGRESS.connect(self.progress_status)
             test_worker.signals.ERROR.connect(self.error_report)
             self.threadpool.start(test_worker)
-            self.timer.singleShot(15000, lambda: self.test())
+            print(f'active threads after running test: {self.threadpool.activeThreadCount()}')
+            # self.timer.singleShot(15000, lambda: self.test())
+            QtTest.QTest.qWait(20000)
+            self.test()
         else:
             self.textBrowser.append("No available connections to the LucidSens.")
             self.textBrowser.append("Please re-establish your connection first.")
@@ -949,21 +975,24 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                 'as': int(self.lineEdit_ADCSpd.text())}})
 
         jsnd_cmd = json.dumps(command)
-        print(jsnd_cmd)
-        if self.serial_connection:
-            # print('Sending command via serial port...')
-            self.serial_sndr_recvr(jsnd_cmd)
+        # jsnd_cmd += '*#'
+        print(jsnd_cmd, type(jsnd_cmd))
 
-        # elif self.wifi_connection:
-        #     print('Sending command via wifi port...')
-        #     self.wifi_sndr_recvr(jsnd_cmd)
+        if self.serial_connection:
+            run_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
+            run_worker.signals.DONE.connect(self.thread_completed)
+            # test_worker.signals.PROGRESS.connect(self.progress_status)
+            run_worker.signals.ERROR.connect(self.error_report)
+            self.threadpool.start(run_worker)
+            self.threadpool.waitForDone()
+            # self.timer.singleShot(15000, lambda: self.test())
 
         else:
-            self.textBrowser.append("No available connections to the MinimalSens.")
+            self.textBrowser.append("No available connections to the LucidSens.")
             self.textBrowser.append("Please re-establish your connection first.")
             msg = QtWidgets.QMessageBox()
             msg.setText("No available connections with the" + self.pen(2, 'blue') +
-                        " Minimal" + "</font>" + self.pen(2, 'orange') + "Sens!" + "</font>" + "\n" +
+                        " Lucid" + "</font>" + self.pen(2, 'orange') + "Sens!" + "</font>" + "\n" +
                         "please check your connections and try again.")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
@@ -972,7 +1001,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
     def about_us(self):
         msg = QtWidgets.QMessageBox()
         msg.setText("""
-        Copyright © 2019 MinimalSens(M. Amin Haghighatbin)
+        Copyright © 2019 LucidSens(M. Amin Haghighatbin)
 
         This software is under MIT License.
 
@@ -1026,9 +1055,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         # self.importTable(open_file_obj)
         self.title = "".join((open_file_obj[0]).split('/')[-1:])
 
-    def preferences(self):
-        pass
-
     def import_table(self, dataFile):
         self.tableWidget.setHorizontalHeaderLabels(['x', 'y'])
         with open(dataFile[0]) as csv_file:
@@ -1078,15 +1104,139 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         p1.showGrid(x=True, y=True, alpha=1)
         p1.setLabel('bottom', 'x', **{'color': 'white', 'font-size': '12px'})
         p1.setLabel('left', 'f(x)', **{'color': 'white', 'font-size': '12px'})
-        self.setText("{} is now presented.".format(self.title))
+        self.setText(f"{self.title} is now presented.")
 
         if self.AreaBox.isChecked():
-            self.setText("The Area under curve is equal to: {}".format(area))
+            self.setText(f"The Area under curve is equal to: {area}")
             self.graphicsView.clear()
             p2 = self.graphicsView.addPlot(title=self.title, x=data_x, y=data_y, pen='r', fillLevel=0, fillBrush="b")
             p2.showGrid(x=True, y=True, alpha=1)
             p2.setLabel('bottom', 'x', **{'color': 'white', 'font-size': '12px'})
             p2.setLabel('left', 'f(x)', **{'color': 'white', 'font-size': '12px'})
+
+    def stop(self):
+        command = ({'header': 'kill'})
+        jsnd_cmd = json.dumps(command)
+        jsnd_cmd += '*#'
+        msg = QtWidgets.QMessageBox()
+        QtTest.QTest.qWait(1000)
+        msg.setText("Experiment canceled.")
+        self.textBrowser.append("LucidSens stopped.")
+        msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        msg.setWindowTitle("Warning")
+        msg.exec_()
+
+    def preferences(self):
+        self.prefs = Preferences()
+        self.prefs.buttonBox.accepted.connect(self.preferences_accept)
+        self.prefs.buttonBox.rejected.connect(self.preferences_reject)
+        self.prefs.show()
+    
+    def preferences_accept(self):
+        index = self.prefs.treeWidget.currentIndex()
+        model = self.prefs.treeWidget.model()
+        if model.data(index) == 'Themes':
+            index = self.prefs.treeWidget.currentIndex().child(0,0)
+        parent_idx = index.parent()
+        for i in range(model.rowCount(parent_idx)):
+            idx = parent_idx.child(i, 0)
+             
+            if model.data(idx) == "Light-Classic":
+                app.setStyleSheet(open("./Themes/Light-Classic.css").read())
+                self.graphicsView.setBackground(background='w')
+                self.prefs.treeWidget.itemFromIndex(idx).setSelected(True)
+                self.prefs.settings.setValue('Theme', 'Light-Classic')
+                self.prefs.close()
+
+            elif model.data(idx) == "Fusion" and idx.data(QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked:
+                app.setStyle('Fusion')
+                self.graphicsView.setBackground(background='w')
+                self.prefs.treeWidget.itemFromIndex(idx).setSelected(True)
+                self.prefs.settings.setValue('Theme', 'Fusion')
+                self.prefs.close()
+            
+            elif model.data(idx) == "Windows" and idx.data(QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked:
+                app.setStyle('Windows')
+                self.graphicsView.setBackground(background='w')
+                self.prefs.treeWidget.itemFromIndex(idx).setSelected(True)
+                self.prefs.settings.setValue('Theme', 'Windows')
+                self.prefs.close()
+
+            elif model.data(idx) == "Dark" and idx.data(QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked:
+                app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+                self.graphicsView.setBackground(background='k')
+                self.prefs.treeWidget.itemFromIndex(idx).setSelected(True)
+                self.prefs.settings.setValue('Theme', 'Dark')
+                self.prefs.close()
+
+            elif model.data(idx) == "Dark-Blue" and idx.data(QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked:
+                app.setStyleSheet(open("./Themes/Dark-Blue.css").read())
+                self.graphicsView.setBackground(background='k')
+                self.prefs.treeWidget.itemFromIndex(idx).setSelected(True)
+                self.prefs.settings.setValue('Theme', 'Dark-Blue')
+                self.prefs.close()
+
+            elif model.data(idx) == "Dark-Gray" and idx.data(QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked:
+                app.setStyleSheet(qdarkgraystyle.load_stylesheet())
+                self.graphicsView.setBackground(background='k')
+                self.prefs.treeWidget.itemFromIndex(idx).setSelected(True)
+                self.prefs.settings.setValue('Theme', 'Dark-Gray')
+                self.prefs.close()
+
+            elif model.data(idx) == "Dark-Orange" and idx.data(QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked:
+                app.setStyleSheet(open("./Themes/Dark-Orange.css").read())
+                self.graphicsView.setBackground(background='k')
+                self.prefs.treeWidget.itemFromIndex(idx).setSelected(True)
+                self.prefs.settings.setValue('Theme', 'Dark-Orange')
+                self.prefs.close()
+            else:
+                pass
+        self.prefs.close()
+
+    def preferences_reject(self):
+        self.prefs.close()
+
+    def wifi_panel(self):
+        self.wf = WifiSettings()
+        self.wf.buttonBox.accepted.connect(self.wf_accept)
+        self.wf.buttonBox.rejected.connect(self.wf_reject)
+        self.wf.show()
+
+    def wf_accept(self):
+        command = ({'header': 'wifi'})
+        command.update({'body': {
+            'ip': str(self.wf.lineEdit_ip.text()),
+            'port': str(self.wf.lineEdit_port.text()),
+            'subnet': str(self.wf.lineEdit_subnet.text()),
+            'gateway': str(self.wf.lineEdit_gateway.text()),
+            'dns': str(self.wf.lineEdit_dns.text()),
+            'essid': str(self.wf.lineEdit_essid.text()),
+            'password': str(self.wf.lineEdit_password.text())
+            }})
+        jsnd_cmd = json.dumps(command)
+        print(jsnd_cmd, f'--> length: {len(jsnd_cmd)}')
+        if self.serial_connection:
+            wf_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
+            wf_worker.signals.DONE.connect(self.thread_completed)
+            # test_worker.signals.PROGRESS.connect(self.progress_status)
+            wf_worker.signals.ERROR.connect(self.error_report)
+            self.threadpool.start(wf_worker)
+            print(f"active threads after running wifi settings: {self.threadpool.activeThreadCount()}")
+
+        else:
+            self.textBrowser.append("No available connections to the LucidSens.")
+            self.textBrowser.append("Please re-establish your connection first.")
+            msg = QtWidgets.QMessageBox()
+            msg.setText("No available connections with the LucidSens, please check your connections and try again.")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
+        self.wf.close()
+
+    def wf_reject(self):
+        print('No wifi settings has been updated.')
+        self.textBrowser.append("No wifi settings has been updated.")
+        self.wf.close()
 
 class MySplashScreen(QtWidgets.QSplashScreen):
 
@@ -1105,35 +1255,10 @@ class MySplashScreen(QtWidgets.QSplashScreen):
         self.setPixmap(pixmap)
         self.setMask(pixmap.mask())
 
-# class Login(QtWidgets.QDialog):
-#     def __init__(self, parent=None):
-#         super(Login, self).__init__(parent)
-#         self.label_user = QtWidgets.QLabel(self)
-#         self.label_user.setText("Username: ")
-#         self.label_pass = QtWidgets.QLabel(self)
-#         self.label_pass.setText("Password: ")
-#         self.textName = QtWidgets.QLineEdit(self)
-#         self.textPass = QtWidgets.QLineEdit(self)
-#         self.buttonLogin = QtWidgets.QPushButton('Login', self)
-#         self.buttonLogin.clicked.connect(self.handleLogin)
-#         layout = QtWidgets.QGridLayout(self)
-#         layout.addWidget(self.label_user)
-#         layout.addWidget(self.textName)
-#         layout.addWidget(self.label_pass)
-#         layout.addWidget(self.textPass)
-#         layout.addWidget(self.buttonLogin)
-#
-#     def handleLogin(self):
-#         if self.textName.text() == 'foo' and self.textPass.text() == 'bar':
-#             self.accept()
-#         else:
-#             QtWidgets.QMessageBox.warning(self, 'Error', 'Bad user or password')
-
-
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    app.setWindowIcon(
-        QtGui.QIcon("/Users/aminhb/PycharmProjects/MinimalSensGUI_v0.01/MinimalSensGUI_v0.01/Icons/miniamlsens.icns"))
+    # app.setWindowIcon(
+    #     QtGui.QIcon(":/Icons/lucidsens_2.icns"))
 
     # splash = MySplashScreen("/Users/aminhb/PycharmProjects/MinimalSensGUI_v0.01/MinimalSensGUI_v0.01/Logo_Splash.gif", QtCore.Qt.WindowStaysOnTopHint)
     # splash.setMask(splash.mask())
@@ -1147,14 +1272,29 @@ if __name__ == '__main__':
     # splash.close()
 
     form = Form()
-    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-    # app.setStyleSheet(open('classicTheme.css').read())
-    # app.setStyleSheet(open('darkBlueTheme.css').read())
-    # app.setStyleSheet(open('darkOrangeTheme.css').read())
-    # app.setStyleSheet(open('classicTheme.css').read())
+    settings = QSettings('Theme')
+    _theme = settings.value('Theme')
+    if _theme:
+        if _theme in ['Dark-Blue', 'Dark-Orange', 'Light-Classic']:
+            app.setStyleSheet(open(f"./Themes/{_theme}.css").read())
+            if _theme == 'Light-Classic':
+                form.graphicsView.setBackground(background='w')
+            else:
+                form.graphicsView.setBackground(background='k')
+
+        elif _theme in ['Dark', 'Dark-Gray']:
+            if _theme == 'Dark':
+                app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+            else:
+                app.setStyleSheet(qdarkgraystyle.load_stylesheet())
+            form.graphicsView.setBackground(background='k')
+
+        elif _theme in ['Fusion', 'Windows']:
+            app.setStyle(_theme)
+            form.graphicsView.setBackground(background='w')
+        else:
+            pass
 
     form.show()
     # splash.finish(form)
-    
     app.exec_()
-    
