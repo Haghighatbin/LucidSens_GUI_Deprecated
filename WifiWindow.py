@@ -128,7 +128,7 @@ class Ui_WifiSettings(object):
 
     def retranslateUi(self, WifiSettings):
         _translate = QtCore.QCoreApplication.translate
-        WifiSettings.setWindowTitle(_translate("WifiSettings", "Dialog"))
+        WifiSettings.setWindowTitle(_translate("WifiSettings", "LucidSens Wifi Settings"))
         self.lineEdit_port.setText(_translate("WifiSettings", "3175"))
         self.label_headText.setText(_translate("WifiSettings", "Please enter your Wifi credentials"))
         self.lineEdit_dns.setText(_translate("WifiSettings", "208.67.222.222"))

@@ -5,26 +5,28 @@ import pyqtgraph as pg
 import matplotlib.pyplot as plt
 import numpy as np
 import serial.tools.list_ports as lp
+from array import array
 import csv
+import pandas as pd
 import qdarkstyle, qdarkgraystyle
 import threading
 import traceback
 import mainWindowGUI, WifiWindow, PreferencesWindow
 
 __APPNAME__ = "LucidSens"
-VERSION = "0.03"
+__VERSION__ = "0.04"
 
 class WorkerSignals(QtCore.QObject):
     '''
     Defined Signals for the Worker thread:
-    DONE: -> None
+    DONE: str -> resp['header']
     ERROR: tuple -> (exctype, value, traceback.format_exc())
-    OUTPUT: depends
+    OUTPUT: dict -> response
     PROGRESS: int -> (progress in %)
     '''
-    DONE = pyqtSignal()
+    DONE = pyqtSignal(str)
     ERROR = pyqtSignal(tuple)
-    OUTPUT = pyqtSignal(object)
+    OUTPUT = pyqtSignal(dict)
     PROGRESS = pyqtSignal(int)
 
 class Worker(QtCore.QRunnable):
@@ -35,8 +37,6 @@ class Worker(QtCore.QRunnable):
         self.args = args
         self.kwargs = kwargs
         self.signals = WorkerSignals()
-        if self.kwargs:
-            self.kwargs['progress_status'] = self.signals.PROGRESS
 
     @pyqtSlot()
     def run(self):
@@ -50,7 +50,7 @@ class Worker(QtCore.QRunnable):
         else:
             self.signals.OUTPUT.emit(output) 
         finally:
-            self.signals.DONE.emit()
+            self.signals.DONE.emit(output['header'])
 
 class Delegate(QtWidgets.QStyledItemDelegate):
     """Creates a deleagte for the Preferences options"""
@@ -103,7 +103,8 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
 
         self.packet_size = 256
         self.content = ''
-        self.timer = QtCore.QTimer()
+        self.current_file = ''
+        # self.timer = QtCore.QTimer()
         self.threadpool = QtCore.QThreadPool()
 
         self.serial_connection = False
@@ -113,6 +114,8 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.setupUi(self)
         self.actionOpen.triggered.connect(self.open)
         self.actionNew.triggered.connect(self.new)
+        self.actionSave_As.triggered.connect(self.save_as)
+        self.actionSave.triggered.connect(self.save)
         self.actionStop.triggered.connect(self.stop)
         self.actionExit.triggered.connect(self.exit)
         self.actionAbout_Us.triggered.connect(self.about_us)
@@ -124,14 +127,14 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.actionPreferences.triggered.connect(self.preferences)
         
         self.graphicsView.clear()
-        p0 = self.graphicsView.addPlot()
-        p0.showAxis('right', show=True)
-        p0.showAxis('top', show=True)
-        p0.showGrid(x=True, y=True, alpha=1)
+        self.p0 = self.graphicsView.addPlot()
+        self.p0.showAxis('right', show=True)
+        self.p0.showAxis('top', show=True)
+        self.p0.showGrid(x=True, y=True, alpha=1)
         
         self.textBrowser.append(self.pen(3, 'cyan') +  "Lucid" + "</font>" + self.pen(3, 'orange') + "Sens" + "</font>" + self.pen(2, 'white') + " (Chemiluminescence-wing)" + "</font>")
         self.textBrowser.append(self.pen(2, 'green') + "-"*75)
-        self.textBrowser.append(self.pen(2, 'green') + f"Version {VERSION}")
+        self.textBrowser.append(self.pen(2, 'green') + f"Version {__VERSION__}")
         self.textBrowser.append(self.pen(2, 'green') +"Developed by M. Amin Haghighatbin")
         self.textBrowser.append(self.pen(2, 'green') +"中国科学技术大学")
         self.textBrowser.append(self.pen(2, 'green') +"University of Science and Technology of China (USTC)")
@@ -158,7 +161,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.lineEdit_SampQuietTime.editingFinished.connect(self.sqt_chk)
         self.lineEdit_NumbSamps.editingFinished.connect(self.sn_chk)
         self.lineEdit_SampTime.editingFinished.connect(self.st_chk)
-        self.lineEdit_SampleIntrvl.editingFinished.connect(self.csi_chk)
+        self.lineEdit_SampIntrvl.editingFinished.connect(self.csi_chk)
         self.lineEdit_Raw2Avrg.editingFinished.connect(self.r2avg_chk)
 
         # Photodetection Settings
@@ -288,266 +291,306 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
     #         self.lineEdit_EChemQT.setText('1')
 
     def sqt_chk(self):
-        """Sampler Quiet Time: A quiet time before initialising the aquisition, no data will be collected during this time."""
+        """Sampler Quiet Time: A quiet time before initialising the aquisition, no data will be collected during this time"""
         try:
             if not self.lineEdit_SampQuietTime.text() or float(self.lineEdit_SampQuietTime.text()) > 100 or float(self.lineEdit_SampQuietTime.text()) < 0:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 0 and 100""")
+                msg.setText("""Please enter a valid value between 0 and 100 seconds.""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
+                msg.setWindowTitle('Value Error')
                 self.lineEdit_SampQuietTime.setText('1')
-
+                msg.exec_()
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 0 and 100""")
+            msg.setText("""Please enter a valid value between 0 and 100 seconds.""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.exec_()
+            msg.setWindowTitle('Value Error')
             self.lineEdit_SampQuietTime.setText('1')
+            msg.exec_()
         except Exception as e:
             print(e)
             self.lineEdit_SampQuietTime.setText('1')
 
     def sn_chk(self):
-        """Number of Samples: LucidSens has currently been designed to collect 3 samples in one cycle."""
+        """Number of Samples: LucidSens has currently been designed to collect 3 samples in one cycle"""
         try:
             if not self.lineEdit_NumbSamps.text() or float(self.lineEdit_NumbSamps.text()) > 18 or float(
                     self.lineEdit_NumbSamps.text()) < 1:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 1 and 18""")
+                msg.setText("""Please enter a valid value between 1 and 18 samples.""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
+                msg.setWindowTitle('Value Error')
                 self.lineEdit_NumbSamps.setText('3')
+                msg.exec_()
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 1 and 18""")
+            msg.setText("""Please enter a valid value between 1 and 18 samples.""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.exec_()
             self.lineEdit_NumbSamps.setText('3')
+            msg.setWindowTitle('Value Error')
+            msg.exec_()
         except Exception as e:
             print(e)
             self.lineEdit_NumbSamps.setText('3')
 
     def st_chk(self):
-        """Sampling Acquistion time: The total time that the photodetection module will be collecting data from each sample."""
+        """Sampling Acquistion time: The total time that the photodetection module will be collecting data from each sample"""
         try:
             if not self.lineEdit_SampTime.text() or float(self.lineEdit_SampTime.text()) > 120 or float(
                     self.lineEdit_SampTime.text()) < 0.1:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 0.1 and 120""")
+                msg.setText("""Please enter a valid value between 0.1 and 180 seconds.""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
+                msg.setWindowTitle('Value Error')
                 self.lineEdit_SampTime.setText('1')
+                msg.exec_()
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 0.1 and 120""")
+            msg.setText("""Please enter a valid value between 0.1 and 180 seconds.""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.exec_()
             self.lineEdit_SampTime.setText('1')
+            msg.setWindowTitle('Value Error')
+            msg.exec_()
         except Exception as e:
             print(e)
             self.lineEdit_SampTime.setText('1')
 
     def csi_chk(self):
-        """Sampling Intervals: The time between data collections during the acquisition time."""
-        try:
-            if not self.lineEdit_SampIntrvls.text() or float(self.lineEdit_SampIntrvls.text()) > 10 or float(
-                    self.lineEdit_SampIntrvls.text()) < 0.001:
+        """Sampling Intervals: The time between data collections during the acquisition time"""
+        try: 
+            if not self.lineEdit_SampIntrvl.text() or float(self.lineEdit_SampIntrvl.text()) > 10 or float(
+                    self.lineEdit_SampIntrvl.text()) < 0.001:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 0.001 and 10""")
+                msg.setText("""Please enter a valid value between 0.001 and 10 seconds.""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
+                self.lineEdit_SampIntrvl.setText('0.01')
+                msg.setWindowTitle('Value Error')
                 msg.exec_()
-                self.lineEdit_SampIntrvls.setText('0.01')
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 0.001 and 10""")
+            msg.setText("""Please enter a valid value between 0.001 and 10 seconds.""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.setWindowTitle('Value Error')
+            self.lineEdit_SampIntrvl.setText('0.01')
             msg.exec_()
-            self.lineEdit_SampIntrvls.setText('0.01')
         except Exception as e:
             print(e)
-            self.lineEdit_SampIntrvls.setText('0.01')
+            self.lineEdit_SampIntrvl.setText('0.01')
 
     def r2avg_chk(self):
-        """Raw to Average: Number of samples to be collected and averaged between two sampling intervals."""
+        """Raw to Average: Number of samples to be collected and averaged between two sampling intervals"""
         try:
             if not self.lineEdit_Raw2Avrg.text() or float(self.lineEdit_Raw2Avrg.text()) > 101 or float(
                     self.lineEdit_Raw2Avrg.text()) < 1:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 0 and 101""")
+                msg.setText("""Please enter a valid value between 0 and 101 samples per collection.""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
                 self.lineEdit_Raw2Avrg.setText('10')
+                msg.setWindowTitle('Value Error')
+                msg.exec_()
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 0 and 101""")
+            msg.setText("""Please enter a valid value between 0 and 101 samples per collection.""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.exec_()
             self.lineEdit_Raw2Avrg.setText('10')
+            msg.setWindowTitle('Value Error')
+            msg.exec_()
         except Exception as e:
             print(e)
             self.lineEdit_Raw2Avrg.setText('10')
 
     def itm_chk(self):
-        """Incubation Time: Incubation time in minutes."""
+        """Incubation Time: Incubation time in minutes"""
         try:
             if not self.lineEdit_IncubTime.text() or float(self.lineEdit_IncubTime.text()) > 180 or float(
                     self.lineEdit_IncubTime.text()) < 1:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 1 and 180""")
+                msg.setText("""Please enter a valid value between 1 and 180 minutes.""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
+                msg.setWindowTitle('Value Error')
                 self.lineEdit_IncubTime.setText('15')
+                msg.exec_()
             else:
                 return self.line
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 1 and 180""")
+            msg.setText("""Please enter a valid value between 1 and 180 minutes.""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.exec_()
             self.lineEdit_IncubTime.setText('15')
+            msg.setWindowTitle('Value Error')
+            msg.exec_()
         except Exception as e:
             print(e)
             self.lineEdit_IncubTime.setText('15')
 
     def itp_chk(self):
-        """Incubation Temperature: The incubatiobn temperature will be adjusted on the defined temperature +/- 2C."""
+        """Incubation Temperature: The incubatiobn temperature will be adjusted on the defined temperature +/- 2C"""
         try:
             if not self.lineEdit_IncubTemp.text() or float(self.lineEdit_IncubTemp.text()) > 45 or float(
                     self.lineEdit_IncubTemp.text()) < 15:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 15 and 45C""")
+                msg.setText("""Please enter a valid value between 15 and 45C degrees.""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
+                msg.setWindowTitle('Value Error')
                 self.lineEdit_IncubTemp.setText('30')
-            else:
-                return self.lineEdit_IncubTemp.text()
+                msg.exec_()
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 15 and 15""")
+            msg.setText("""Please enter a valid value between 15 and 45C degrees.""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.exec_()
             self.lineEdit_IncubTemp.setText('30')
+            msg.setWindowTitle('Value Error')
+            msg.exec_()
         except Exception as e:
             print(e)
             self.lineEdit_IncubTemp.setText('30')
 
     def bf_chk(self):
-        """Blower Status: This module could be turned off in case the incubation occurs under and external gas source."""
+        """Blower Status: This module could be turned off in case the incubation occurs under an external gas source"""
         return str(self.comboBox_BlowerStat.currentText())
 
     def adcr_chk(self):
-        """Sampling ADC reading Mode: The default setting is Slow for Chemiluminescence measuremnents."""
+        """Sampling ADC reading Mode: The default setting is Slow for Chemiluminescence measuremnents"""
         return str(self.comboBox_SampReadMod.currentText())
 
     def pmv_chk(self):
-        """Silicon Photomultiplier Power Set: This module supplies the HV required for the SiPM to operate."""
+        """Silicon Photomultiplier Power Set: This module supplies the HV required for the SiPM to operate"""
         try:
             if not self.lineEdit_PMV.text() or float(self.lineEdit_PMV.text()) > 35 or float(
-                    self.lineEdit_PMV.text()) < 25:
+                    self.lineEdit_PMV.text()) < 20:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value between 25 and 35""")
+                msg.setText("""Please enter a valid value between 25 and 35 volts.""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
+                self.lineEdit_PMV.setText('30')
+                msg.setWindowTitle('Value Error')
                 msg.exec_()
-                self.lineEdit_PMV.setText('32')
         except ValueError:
             msg = QtWidgets.QMessageBox()
-            msg.setText("""Please enter a valid value between 25 and 35""")
+            msg.setText("""Please enter a valid value between 25 and 35 volts.""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
+            self.lineEdit_PMV.setText('30')
+            msg.setWindowTitle('Value Error')
             msg.exec_()
-            self.lineEdit_PMV.setText('32')
         except Exception as e:
             print(e)
-            self.lineEdit_PMV.setText('32')
+            self.lineEdit_PMV.setText('30')
 
     def adcg_chk(self):
-        """Silicon Photomultiplier ADC gain: refer to ADS1232 datasheet - default value is 1."""
+        """Silicon Photomultiplier ADC gain: refer to ADS1232 datasheet - default value is 1"""
         try:
             if not self.lineEdit_ADCGain.text() or int(self.lineEdit_ADCGain.text()) not in [1, 2, 64, 128]:
                 msg = QtWidgets.QMessageBox()
                 msg.setText("""Please enter a valid value: 1, 2, 64, 128""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
+                msg.setWindowTitle('Value Error')
                 self.lineEdit_ADCGain.setText('1')
+                msg.exec_()
         except ValueError:
             msg = QtWidgets.QMessageBox()
             msg.setText("""Please enter a valid value: 1, 2, 64, 128""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.exec_()
             self.lineEdit_ADCGain.setText('1')
+            msg.setWindowTitle('Value Error')
+            msg.exec_()
         except Exception as e:
             print(e)
             self.lineEdit_ADCGain.setText('1')
 
     def adcs_chk(self):
-        """Silicon Photomultiplier ADC gain: refer to the ADS1232 datasheet - default value is 1."""
+        """Silicon Photomultiplier ADC gain: refer to the ADS1232 datasheet - default value is 1"""
         try:
             if not self.lineEdit_ADCSpd.text() or int(self.lineEdit_ADCSpd.text()) not in [1, 2]:
                 msg = QtWidgets.QMessageBox()
-                msg.setText("""Please enter a valid value: 1, 2""")
+                msg.setText("""Please enter a valid value: 1 or 2""")
                 msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.exec_()
                 self.lineEdit_ADCSpd.setText('1')
+                msg.setWindowTitle('Value Error')
+                msg.exec_()
         except ValueError:
             msg = QtWidgets.QMessageBox()
             msg.setText("""Please enter a valid value: 1, 2""")
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.exec_()
             self.lineEdit_ADCSpd.setText('1')
+            msg.setWindowTitle('Value Error')
+            msg.exec_()
         except Exception as e:
             print(e)
             self.lineEdit_ADCSpd.setText('1')
     
     def smth_chk(self):
-        """Data Smoothing Algorithm: Runs the smoothing algorithm on the collected raw data."""
+        """Data Smoothing Algorithm: Runs the smoothing algorithm on the collected raw data"""
         self.algo = self.comboBox_Smt.currentText()
         self.order = self.comboBox_SGorders.currentText()
         return [self.algo, self.order] 
 
-    def progress_status(self, n):
-        self.statusbar.showMessage(f'{n}%')
-
     def error_report(self, tpl):
+        """Error report: Thread exceptions will be reflecred on the textBrowser"""
         self.textBrowser.append(f'THREAD: ERROR:\n{tpl}')
 
-    def thread_completed(self):
-        self.statusbar.showMessage("THREAD: Done.")
+    def thread_completed(self, txt):
+        """Thread completion method"""
+        if 'test' in txt:
+            txt = 'Just had a nice chat with the LS! serial connection is up and running.'
+
+        elif 'kill' in txt:
+            txt = 'Incubation has been canceled.'
+
+        elif 'wifi' in txt:
+            txt = 'Wifi credentials were updated, please restart the device and re-establish your connection.'
+
+        elif 'incubation' in txt:
+            txt = 'Incubation in progress. please be patient. \n\nNote: Incubation can be canceled by clicking on the Stop button.'
+
+        elif 'sampling' in txt:
+            txt = 'Sampling is initialised, please be patient.'
+
+        else:
+            txt = 'Task was not clear, howerver, it is handled now!'
+
+        self.statusbar.showMessage("Done.")
+        self.textBrowser.append(self.pen() + txt + "</font>")
 
     def writer(self, txt, font_size=8, color='green'):
+        """Writer method"""
         self.textBrowser.setTextColor(QtGui.QColor(f'{color}'))
         self.textBrowser.setFontPointSize(10)
         for idx, char in enumerate(txt):
             self.textBrowser.insertPlainText(char)
             QtTest.QTest.qWait(20)
+        self.textBrowser.moveCursor(QtGui.QTextCursor.End)
+        self.textBrowser.ensureCursorVisible()
         
-    def pen(self, size, color):
+    def pen(self, size=2, color='green'):
+        """Default pen method for the textBrowser"""
         return f"<font size='{size}' color='{color}'>"
        
     def sampling_mod_status(self):
+        """Manages the status of the labels and lineEdits in the Sampling Mode section"""
         if self.checkBox_SampMod.isChecked():
             self.lineEdit_SampQuietTime.setDisabled(False)
             self.lineEdit_NumbSamps.setDisabled(False)
             self.lineEdit_SampTime.setDisabled(False)
-            self.lineEdit_SampIntrvls.setDisabled(False)
+            self.lineEdit_SampIntrvl.setDisabled(False)
             self.lineEdit_Raw2Avrg.setDisabled(False)
 
             self.label_SampQuietT.setDisabled(False)
@@ -573,7 +616,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.lineEdit_SampQuietTime.setDisabled(True)
             self.lineEdit_NumbSamps.setDisabled(True)
             self.lineEdit_SampTime.setDisabled(True)
-            self.lineEdit_SampIntrvls.setDisabled(True)
+            self.lineEdit_SampIntrvl.setDisabled(True)
             self.lineEdit_Raw2Avrg.setDisabled(True)
 
             self.label_SampQuietT.setDisabled(True)
@@ -597,6 +640,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.checkBox_IncubMod.setDisabled(False)
 
     def incubation_mod_status(self):
+        """Manages the status of the labels and lineEdits in the Incubation Mode section"""
         if self.checkBox_IncubMod.isChecked():
             self.label_IncubTime.setDisabled(False)
             self.lineEdit_IncubTime.setDisabled(False)
@@ -620,6 +664,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.label_PDSets.setDisabled(False)
 
     def data_processing_mod_status(self):
+        """Manages the status of the labels and lineEdits in the Data-Processing section"""
         if self.checkBox_DataSmth.isChecked():
             self.comboBox_Smt.setDisabled(False)
             self.comboBox_SGorders.setDisabled(False)
@@ -629,29 +674,24 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             self.comboBox_SGorders.setDisabled(True)
  
     def serial_port(self):
+        """Initialises the serial communication with the LucidSens device"""
         try:
             if lp.comports():
                 for idx, port in enumerate(lp.comports()):
 
-                    # in MAC OS
+                    # MAC OS
                     if "usbmodem" in str(port.device) or "wch" in str(port.device) or "SLAB" in str(port.device):
                         serial_port = str(port.device)
                         serial_port = serial_port.replace("cu", "tty")
 
-                    # in Windows OS
+                    # Windows OS
                     if "CP210x" in str(port):
                         serial_port = str(port.device)
 
-                # serial_chk_worker = Worker(self.writer,"\nEstablishing connection via serial port\nScanning serial ports...\nAvailable port: {}\n".format(serial_port), color='green')
-                # self.threadpool.start(serial_chk_worker)
-                # self.textBrowser.append("\nEstablishing connection via serial port\nScanning serial ports...")
-                # self.textBrowser.append("\nAvailable port: {}\n".format(serial_port))
                 self.writer("\nEstablishing connection via serial port\nScanning serial ports...")
                 self.writer(f"\nAvailable port: {serial_port}\n")
 
                 if serial_port:
-                    # worker_serial2 = Worker(self.writer, "Connection established.\n--------------------------------------".format(serial_port))
-                    # self.timer.singleShot(6000, lambda: self.threadpool.start(worker_serial2))
                     self.operator = serial.Serial(serial_port, baudrate=115200)
                     self.serial_connection = True
 
@@ -664,23 +704,21 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                 self.serial_connection = False
                 self.textBrowser.append(self.pen(2, 'red') + "Failed to find any available Serial ports! " + "</font>")
                 QtTest.QTest.qWait(1000)
-
-                
             return self.serial_connection
+
         except Exception as e:
             self.serial_connection = False
             self.textBrowser.append(
-            self.pen(2, 'red') + "Failed to communicate via Serial!" + "</font>")
+            self.pen(2, 'red') + "Failed to communicate via Serial port!" + "</font>")
             self.textBrowser.append(str(e) + "\n")
             return self.serial_connection
 
     def connection_status(self):
-        # self.actionConnection.setIcon(QtGui.QIcon(":/Icons/disconnect.icns"))
+        """Manages the serial connection status"""
         if not self.serial_connection:
             self.serial_port()
             QtTest.QTest.qWait(1000)
-            self.textBrowser.append(
-                self.pen(2, 'cyan') + "Connection established via Serial port." + "</font>")
+            self.writer("Connection established via Serial port.", 8, 'cyan')
             self.actionConnection.setIcon(QtGui.QIcon(":/Icons/connection_green.icns"))
 
         else:
@@ -698,30 +736,15 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             msg.setWindowTitle("Warning")
             msg.exec_()
 
-        # Dialog to send username and password
-        # self.wifi_check()
-        # # if self.wifi_connection:
-        # msg = QtWidgets.QMessageBox()
-        # button_reply = msg.question(self, 'Connection', "Do you have Wireless access to MinimalSens? Would you like to try Wifi connection?", msg.Yes | msg.No)
-        # if button_reply == msg.Yes:
-        #     print("Wifi YES")
-        #     login = Login()
-        #
-        #     if login.exec_() == QtWidgets.QDialog.Accepted:
-        #         print("password Accepted")
-        #
-        # else:
-        #     print("No")
-        # # msg.exec_()
-
     def serial_sndr_recvr(self, command):
+        """This method encapsulates, encodes and decodes the commands and responses to and from the LucidSens"""
         self.content = ''
         delay = 1000  # in ms
         print('Waiting for invitation', end='')
         self.statusbar.showMessage('Waiting for invitation')
         while b'sr_receiver: READY\n' not in self.operator.read_all():
             # self.timer.singleShot(1000, lambda: print('.', end=''))
-            print('.', end='')
+            # print('.', end='')
             QtTest.QTest.qWait(delay)
         print('\nInvited, sending GO!')
         self.statusbar.showMessage('Invited, sending GO!')
@@ -735,7 +758,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         t0 = time.time()
 
         def chopper(cmd):
-            # return [cmd[i:i + self.pck_size] for i in range(0, len(cmd), self.pck_size)]
             data = []
             segments = [cmd[i:i + self.packet_size] for i in range(0, len(cmd), self.packet_size)]
             for segment in segments:
@@ -748,35 +770,35 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         ### SENDER ###
         try:
             if len(command) > self.packet_size:
-                print(f'Data larger than {self.packet_size} chars, calling Chopper...')
+                # print(f'Data larger than {self.packet_size} chars, calling Chopper.')
                 for idx, data in enumerate([chunk for chunk in chopper(command)]):
-                    print(f'packet[{idx}]: {data} --- length: {len(data)} chars --- size: {sys.getsizeof(data)}')
+                    # print(f'packet[{idx}]: {data} --- length: {len(data)} chars --- size: {sys.getsizeof(data)}')
                     self.operator.write(data.encode())
                     QtTest.QTest.qWait(delay)
                     resp = self.operator.read_all()
                     # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                    print(resp)
+                    # print(resp)
                     if 'EOF received.\n' in resp.decode():
-                        print('_LucidSens: EOF received in first run, file was sent successfully.')
+                        # print('_LucidSens: EOF received in first run, file was sent successfully.')
                         pck_size_tot += sys.getsizeof(data)
                     elif b'got it.\n' in resp:
-                        print(f'packet [{ixd}] received on the first try.')
+                        # print(f'packet [{ixd}] received on the first try.')
                         pck_size_tot += sys.getsizeof(data)
                     else:
-                        print('sending packet again: {}', end='')
+                        # print('sending packet again: {}', end='')
                         while True:
-                            print('.', end='')
+                            # print('.', end='')
                             self.operator.write(data.encode())
                             QtTest.QTest.qWait(delay)
                             resp = self.operator.read_all()
                             # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                            print(resp)
+                            # print(resp)
                             if 'EOF received.\n' in resp.decode():
-                                print('EOF received in retry, file was successfully sent.')
+                                # print('EOF received in retry, file was successfully sent.')
                                 pck_size_tot += sys.getsizeof(data)
                                 break
                             elif b'got it.\n' in resp:
-                                print('packet sent in retry.')
+                                # print('packet sent in retry.')
                                 pck_size_tot += sys.getsizeof(data)
                                 break
                             else:
@@ -786,29 +808,29 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
 
             else:
                 self.statusbar.showMessage('Sending...')
-                print(f'Data not larger than {self.packet_size} chars, no need to call the Chopper.')
+                # print(f'Data not larger than {self.packet_size} chars, no need to call the Chopper.')
                 command += '*#'
                 self.operator.write(command.encode())
                 QtTest.QTest.qWait(delay)
                 resp = self.operator.read_all()
                 # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                print(resp)
+                # print(resp)
                 if 'EOF received.' in resp.decode():
-                    print('\n_LucidSens: EOF received by LS on the first try.')
-                    self.statusbar.showMessage('Command was Sent.')
+                    # print('\n_LucidSens: EOF received by LS on the first try.')
+                    self.statusbar.showMessage('Command is Sent.')
                     pck_size_tot += sys.getsizeof(command)
                 
                 else:
                     # print('sending packet again', end='')
                     while True:
                         self.operator.write(command.encode())
-                        print('.', end='')
+                        # print('.', end='')
                         QtTest.QTest.qWait(delay)
                         resp = self.operator.read_all()
                         # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                        print(resp)
+                        # print(resp)
                         if 'EOF received.' in resp.decode():
-                            print('\n_LucidSens: EOF received in retry.')
+                            # print('\n_LucidSens: EOF received in retry.')
                             pck_size_tot += sys.getsizeof(command)
                             break
                         elif b'got it.' in self.operator.read_all():
@@ -818,25 +840,26 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                         else:
                             # QtTest.QTest.qWait(delay)
                             pass
-                    self.statusbar.showMessage('Command was sent.')
+                    self.statusbar.showMessage('Command is sent.')
                     print('Packet eventually received by LucidSens.')
 
-            print(f'Took {(time.time() - t0)} seconds to {pck_size_tot} bytes.')
+            # print(f'Took {(time.time() - t0)} seconds to {pck_size_tot} bytes.')
             
             ### RECEIVER ###
             # print('\nReceiving', end='')
-            self.statusbar.showMessage('Receiving...')
+            self.statusbar.showMessage('Waiting...')
             while '*' not in self.content:
                 try:
                     QtTest.QTest.qWait(delay)
                     data = self.operator.read_all()
                     # data = self.timer.singleShot(1000, lambda: self.operator.read_all())
                     data_decd = data.decode()
-                    print(data_decd)
+                    # print(data_decd)
+                    self.statusbar.showMessage('Receiving...')
                     if '#' in data_decd and data_decd[:-2] not in self.content:
                         if data_decd[-2] == '*':
                             self.content += data_decd[:-1]
-                            print('\nResponse received!')
+                            # print('\nResponse received!')
                             self.statusbar.showMessage('Response is received')
                             # self.operator.write('EOF received.#'.encode())
                             break
@@ -844,52 +867,106 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                             # if 'size' in blah
                             self.content += data_decd[:-2]
                             self.operator.write('got it.#'.encode())
-                            print('.', end='')
+                            # print('.', end='')
                             QtTest.QTest.qWait(delay)
                         else:
                             pass
                     else:
                         QtTest.QTest.qWait(delay)
-                        pass
                 except:
                     pass
-            print(f'\nResponse: {self.content}')
+            # print(f'\nResponse: {self.content}')
             if '*' in self.content:
                 self.operator.write('EOF received.#'.encode())
                 with open('resp.txt', 'w') as raw_resp:
                     raw_resp.write(self.content[:-1])
-                print('Processing the response.')
                 self.statusbar.showMessage('Processing the response...')
-                with open('resp.txt', 'r') as resp:
-                    for line in resp:
-                        if 'LS: wfcreds was updated.' in line:
-                            print('wfcreds created.')
-                            self.textBrowser.append('Wifi credetntials were updated on LucidSens.')
-                            # resp.close()
-                            # return "wfcreds created."
-                            # message
-                        if 'LS: incubation initialised.' in line:
-                            self.textBrowser.append('Incubation initialised.')
-                            print('incubation initiated.')
-                            # return 'incubation initialised.' 
-                        else:
-                            print(f'response: {line}')
-                            # return line
-
+                with open('resp.txt', 'r') as f:
+                    for line in f:
+                        resp = eval(line)
         except KeyboardInterrupt:
             print('Aborted!')
         except Exception as e:
             print(e)
-        return 'Exiting Sender_Receiver.'
+        finally:
+            return resp
+
+    def response_handler(self, resp):
+        """Handles the responses and task completion signs"""
+        if 'test' in resp['header']:
+            self.statusbar.showMessage('Just had a nice chat with the LS! serial connection is up and running.')
+            self.test()
+        
+        elif 'kill' in resp['header']:
+            self.statusbar.showMessage('Incubation was canceled.')
+            msg = QtWidgets.QMessageBox()
+            msg.setText(resp['body'])
+            msg.setWindowTitle('Task accomplished')
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Information)
+            msg.exec_()
+
+        elif 'wifi' in resp['header']:
+            self.statusbar.showMessage('Wifi Credentials were updated, please restart the device')
+            msg = QtWidgets.QMessageBox()
+            msg.setText(resp['body'])
+            msg.setWindowTitle('Task accomplished')
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Information)
+            msg.exec_()
+
+        elif 'incubation' in resp['header']:
+            self.statusbar.showMessage('Incubation in progress')
+            msg = QtWidgets.QMessageBox()
+            msg.setText(resp['body'])
+            msg.setWindowTitle('Task accomplished')
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Information)
+            msg.exec_()
+
+        elif 'sampling' in resp['header']:
+            self.statusbar.showMessage('Sampling in progress')
+            time_axis = [round((i*resp['notes'][2]), 2) for i in range(int(resp['notes'][1]/resp['notes'][2]))]
+            data = []
+            samples = resp['notes'][0]
+            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
+            for i in range(samples):
+                data.append((resp['body'][i][1]).tolist())
+                # Plotting each sample
+                self.plot_data(time_axis, resp['body'][i][1].tolist(), color=colors[i], title=f'Sample #{i+1}')
+            # Saving data as a CSV file
+            data[0:0] = [time_axis]
+            _, merged_list = [], []
+            for i in range(len(data[0])):
+                for j in range(samples + 1): 
+                    _.append(data[j][i])
+                merged_list.append(_)
+                _ = []
+
+            with open('latest_data.csv', 'w', newline='') as f:
+                writer = csv.writer(f)
+                headers = [f'Sample #{i+1}' for i in range(samples)]
+                headers[0:0] = ['Time (s)']
+                writer.writerow(headers)
+                for row in merged_list:
+                    writer.writerow(row)
+                self.current_file = 'latest_data.csv'
+            with open('latest_data.csv', 'r') as f:
+                self.current_file = os.path.realpath(f.name)
+        else:
+            print(f'response: {resp}', type(resp))
 
     def test(self):
+        """Plots the serial test module"""
         while not os.path.exists('resp.txt'):
             pass
         try:
             with open('resp.txt', 'r') as f:
                 for line in f:
-                    if eval(line)['header'] == 'test_astroid':
-                        print('Test_Astroid list is received, illustrating...')
+                    if 'test' in eval(line)['header']:
+                        # print('Test_Astroid list is received, illustrating...')
+                        self.statusbar.showMessage('Astroid list is received, illustrating...')
                         list_t = eval(line)['body']
                     else:
                         print('Something is wrong with the received list.')
@@ -911,12 +988,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     QtTest.QTest.qWait(10)
                     p2.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][2], pen=pg.mkPen('k', width=1))
                     QtTest.QTest.qWait(10)
-
-            txt = "\nSerial port is up and running.\n----------------------------------------"
-            # txt_worker = Worker(self.writer, txt, color='green')
-            self.textBrowser.append("\nSerial port is up and running.\n----------------------------------------")
-            # self.threadpool.start(txt_worker)
-            
             p2.clear()
             p2.showGrid(x=True, y=True, alpha=1)
 
@@ -924,50 +995,50 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             print(e)
 
     def run_test(self):
+        """Prepares the serial test command"""
         if os.path.exists("resp.txt"):
             os.remove("resp.txt")
 
         command = ({'header': 'test'})
         command.update({'body': {'it': int(self.comboBox.currentText())}})
         jsnd_cmd = json.dumps(command)
-        # jsnd_cmd += '*#'
-        print(jsnd_cmd, type(jsnd_cmd))
 
         if self.serial_connection:
             test_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
             test_worker.signals.DONE.connect(self.thread_completed)
-            # test_worker.signals.PROGRESS.connect(self.progress_status)
+            test_worker.signals.OUTPUT.connect(self.response_handler)
             test_worker.signals.ERROR.connect(self.error_report)
             self.threadpool.start(test_worker)
-            print(f'active threads after running test: {self.threadpool.activeThreadCount()}')
             # self.timer.singleShot(15000, lambda: self.test())
             QtTest.QTest.qWait(20000)
-            self.test()
+
         else:
-            self.textBrowser.append("No available connections to the LucidSens.")
-            self.textBrowser.append("Please re-establish your connection first.")
+            self.textBrowser.append(self.pen() + "No available connections to the LucidSens,\nPlease re-establish the connection first." + "</font>")
+            
             msg = QtWidgets.QMessageBox()
             msg.setText("No available connections with the" + self.pen(2, 'blue') +
                         " Lucid" + "</font>" + self.pen(2, 'orange') + "Sens!" + "</font>"+ "\n" +
                         "please check your connections and try again.")
-            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setWindowTitle("Warning")
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.exec_()
         
     def run(self):
-        command = ({'header': 'run'})
+        """Prepares the run command"""
         if self.checkBox_IncubMod.isChecked():
+            command = ({'header': 'incubation'})
             command.update({'body': {
                 'it': float(self.lineEdit_IncubTime.text()),
                 'ip': float(self.lineEdit_IncubTemp.text()),
                 'bf': str(self.comboBox_BlowerStat.currentText())}})
 
         if self.checkBox_SampMod.isChecked():
+            command = ({'header': 'sampling'})
             command.update({'body': {
                 'sqt': float(self.lineEdit_SampQuietTime.text()),
                 'sn': int(self.lineEdit_NumbSamps.text()),
                 'st': float(self.lineEdit_SampTime.text()),
-                'si': float(self.lineEdit_SampIntrvls.text()),
+                'si': float(self.lineEdit_SampIntrvl.text()),
                 'r2avg': int(self.lineEdit_Raw2Avrg.text()),
                 'pmr': str(self.comboBox_SampReadMod.currentText()),
                 'pv': float(self.lineEdit_PMV.text()),
@@ -975,46 +1046,46 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                 'as': int(self.lineEdit_ADCSpd.text())}})
 
         jsnd_cmd = json.dumps(command)
-        # jsnd_cmd += '*#'
-        print(jsnd_cmd, type(jsnd_cmd))
-
         if self.serial_connection:
             run_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
             run_worker.signals.DONE.connect(self.thread_completed)
-            # test_worker.signals.PROGRESS.connect(self.progress_status)
+            run_worker.signals.OUTPUT.connect(self.response_handler)
             run_worker.signals.ERROR.connect(self.error_report)
             self.threadpool.start(run_worker)
-            self.threadpool.waitForDone()
             # self.timer.singleShot(15000, lambda: self.test())
 
         else:
-            self.textBrowser.append("No available connections to the LucidSens.")
-            self.textBrowser.append("Please re-establish your connection first.")
+            self.textBrowser.append(self.pen() + "No available connections to the LucidSens,\nPlease re-establish your connection first." + "</font>")
             msg = QtWidgets.QMessageBox()
             msg.setText("No available connections with the" + self.pen(2, 'blue') +
                         " Lucid" + "</font>" + self.pen(2, 'orange') + "Sens!" + "</font>" + "\n" +
                         "please check your connections and try again.")
+            msg.setWindowTitle('Warning')
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
             msg.exec_()
 
     def about_us(self):
+        """About Us"""
         msg = QtWidgets.QMessageBox()
-        msg.setText("""
-        Copyright © 2019 LucidSens(M. Amin Haghighatbin)
-
-        This software is under MIT License.
-
-        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-        The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.""")
-        msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        msg.setWindowTitle("About Us")
-        msg.exec_()
+        _theme = QSettings('Theme').value('Theme')
+        if _theme:
+            color = 'black' if _theme in ['Fusion', 'Light-Classic'] else 'white'
+        QtWidgets.QMessageBox.about(msg, 'About Us',
+            f"""<font size='4' color='blue'><p><b>Lucid<font size=4 color='orange'>Sens</font><font color={color}> &copy;2021</p></b></font>
+            <font color={color}><p>Version:      {__VERSION__}</p><br></br>
+            
+            <p><b>Author:       M.Amin Haghighatbin</b> </font></p>
+            
+            <font color={color}><p><b>Email: </b>aminhb@tutanota.com</p><p>aminhb@ustc.edu.cn</p>
+            
+            <font color='red'><p><b>Github: <a href='https://github.com/haghighatbin/LucidSens_GUI'>https://github.com/haghighatbin/LucidSens_GUI</a></b></p></font><br></br>
+            
+            
+            <b><p>*This software is under XXX license.</p></b></font>""")
 
     def help(self):
+        """Operational manual and documentations will be added here"""
         msg = QtWidgets.QMessageBox()
         msg.setText("Can't help you mate, you're done!")
         msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
@@ -1022,16 +1093,16 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         msg.exec_()
 
     def new(self):
+        """Clears the graphicsView Window"""
         self.graphicsView.clear()
-        p0 = self.graphicsView.addPlot()
-        p0.showGrid(x=True, y=True, alpha=1)
-        self.tableWidget.clear()
-        self.setText("Plot is now cleared.")
+        self.p0 = self.graphicsView.addPlot()
+        self.p0.showGrid(x=True, y=True, alpha=1)
 
     def exit(self):
+        """Exits the app"""
         msg = QtWidgets.QMessageBox()
         msg.setText("Are you sure you want to exit?")
-        msg.setWindowTitle('EXIT')
+        msg.setWindowTitle('Exit')
         msg.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         msg.setDefaultButton(QtWidgets.QMessageBox.Cancel)
         msg.setIcon(QtWidgets.QMessageBox.Warning)  # Information - Critical - Question
@@ -1042,18 +1113,52 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             msg.close()
 
     def save(self):
-        pass
+        """Save Method"""
+        # this method needs to be modified after implementing an editable data-table
+        df = pd.read_csv(self.current_file)
+        df.to_csv(self.current_file, index=False)
 
     def save_as(self):
-        pass
+        """Save as Method"""
+        save_as_file_obj = QtWidgets.QFileDialog.getSaveFileName(caption=__APPNAME__ + "QDialog Open File", filter="Text Files (*.csv)")
+        if not save_as_file_obj[0]:
+            return
+        if not self.current_file:
+            return
+
+        df = pd.read_csv(self.current_file)
+        df.to_csv(save_as_file_obj[0], index=False)
 
     def open(self):
+        """Opens a CSV file"""
+        open_file_obj = QtWidgets.QFileDialog.getOpenFileName(caption=__APPNAME__ + "QDialog Open File", filter="Text Files (*.csv)")
+        if not open_file_obj[0]:
+            return
+        # self.title = "".join((open_file_obj[0]).split('/')[-1:])
+        try:
+            self.current_file = open_file_obj[0]
+            df = pd.read_csv(self.current_file)
+            if len(df.columns) < 2:
+                msg = QtWidgets.QMessageBox()
+                QtTest.QTest.qWait(1000)
+                msg.setText("Seems like your dara is incomplete! faild to preview.")
+                self.textBrowser.append("Data file sounds incomplete.")
+                msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+                msg.setWindowTitle("Warning")
+                msg.exec_()
 
-        dir = "/Users/aminhb/Desktop/"
-        open_file_obj = QtWidgets.QFileDialog.getOpenFileName(caption=__APPNAME__ + "QDialog Open File", directory=dir,
-                                                              filter="Text Files (*.csv)")
-        # self.importTable(open_file_obj)
-        self.title = "".join((open_file_obj[0]).split('/')[-1:])
+            else:
+                colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+                time_idx = df['Time (s)'].tolist()
+                for i in range(1, len(df.columns)):
+                    self.plot_data(time_idx, df[f'Sample #{i}'].tolist(), color=colors[i-1], title=f'Sample #{i}')
+        except:
+            msg = QtWidgets.QMessageBox()
+            msg.setText("Invalid file format. Are you sure file was created by the LucidSens!?")
+            msg.setWindowTitle('File Error')
+            msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.exec_()
 
     def import_table(self, dataFile):
         self.tableWidget.setHorizontalHeaderLabels(['x', 'y'])
@@ -1085,54 +1190,38 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.tableWidget.setRowCount(idx + 1)
         self.setText("Datafile is imported to the table.")
 
-    def plot_data(self):
-        self.graphicsView.clear()
-        data_x, data_y = [], []
-        for col in range(self.tableWidget.columnCount()):
-            for row in range(self.tableWidget.rowCount()):
-                try:
-                    if col == 0:
-                        data_x.append(float(self.tableWidget.item(row, 0).text()))
-                    elif col == 1:
-                        data_y.append(float(self.tableWidget.item(row, 1).text()))
-                except Exception as e:
-                    print(e)
-                    print("Error is handled: NoneType values were removed." + '\n')
-        area = trapz(data_y, dx=(data_x[2] - data_x[1]))
-
-        p1 = self.graphicsView.addPlot(title="Normal Distribution", x=data_x, y=data_y, pen='r')
-        p1.showGrid(x=True, y=True, alpha=1)
-        p1.setLabel('bottom', 'x', **{'color': 'white', 'font-size': '12px'})
-        p1.setLabel('left', 'f(x)', **{'color': 'white', 'font-size': '12px'})
-        self.setText(f"{self.title} is now presented.")
-
-        if self.AreaBox.isChecked():
-            self.setText(f"The Area under curve is equal to: {area}")
-            self.graphicsView.clear()
-            p2 = self.graphicsView.addPlot(title=self.title, x=data_x, y=data_y, pen='r', fillLevel=0, fillBrush="b")
-            p2.showGrid(x=True, y=True, alpha=1)
-            p2.setLabel('bottom', 'x', **{'color': 'white', 'font-size': '12px'})
-            p2.setLabel('left', 'f(x)', **{'color': 'white', 'font-size': '12px'})
+    def plot_data(self, x, y, color='w', title='Data'):
+        """Handles data-plotting"""
+        data_x, data_y = x, y
+        self.p0.addLegend(offset=(548,8))
+        self.p0.plot(x=data_x, y=data_y, pen=pg.mkPen(color=color, width=2), name=title)
+        self.p0.showGrid(x=True, y=True, alpha=1)
+        _theme = QSettings('Theme').value('Theme')
+        if _theme:
+            color = 'black' if _theme in ['Fusion', 'Light-Classic'] else 'white'
+        self.p0.setLabel('bottom', 'Time (s)', **{'color': color, 'font-size': '12px'})
+        self.p0.setLabel('left', 'Counts (a.u.)', **{'color': color, 'font-size': '12px'})
 
     def stop(self):
+        """Kill switch to interrupt the on-going operation on the LucidSens"""
         command = ({'header': 'kill'})
         jsnd_cmd = json.dumps(command)
-        jsnd_cmd += '*#'
-        msg = QtWidgets.QMessageBox()
-        QtTest.QTest.qWait(1000)
-        msg.setText("Experiment canceled.")
-        self.textBrowser.append("LucidSens stopped.")
-        msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        msg.setWindowTitle("Warning")
-        msg.exec_()
+        if self.serial_connection:
+            stop_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
+            stop_worker.signals.DONE.connect(self.thread_completed)
+            stop_worker.signals.OUTPUT.connect(self.response_handler)
+            stop_worker.signals.ERROR.connect(self.error_report)
+            self.threadpool.start(stop_worker)
 
     def preferences(self):
+        """Preferences window."""
         self.prefs = Preferences()
         self.prefs.buttonBox.accepted.connect(self.preferences_accept)
         self.prefs.buttonBox.rejected.connect(self.preferences_reject)
         self.prefs.show()
     
     def preferences_accept(self):
+        """Manages the theme, saves and restores the preferences."""
         index = self.prefs.treeWidget.currentIndex()
         model = self.prefs.treeWidget.model()
         if model.data(index) == 'Themes':
@@ -1194,15 +1283,18 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.prefs.close()
 
     def preferences_reject(self):
+        """Closes the preferences window."""
         self.prefs.close()
 
     def wifi_panel(self):
+        """Wifi settings window"""
         self.wf = WifiSettings()
         self.wf.buttonBox.accepted.connect(self.wf_accept)
         self.wf.buttonBox.rejected.connect(self.wf_reject)
         self.wf.show()
 
     def wf_accept(self):
+        """Prepares the wifi command"""
         command = ({'header': 'wifi'})
         command.update({'body': {
             'ip': str(self.wf.lineEdit_ip.text()),
@@ -1214,27 +1306,27 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             'password': str(self.wf.lineEdit_password.text())
             }})
         jsnd_cmd = json.dumps(command)
-        print(jsnd_cmd, f'--> length: {len(jsnd_cmd)}')
         if self.serial_connection:
             wf_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
             wf_worker.signals.DONE.connect(self.thread_completed)
+            wf_worker.signals.OUTPUT.connect(self.response_handler)
             # test_worker.signals.PROGRESS.connect(self.progress_status)
             wf_worker.signals.ERROR.connect(self.error_report)
             self.threadpool.start(wf_worker)
-            print(f"active threads after running wifi settings: {self.threadpool.activeThreadCount()}")
+            # print(f"active threads after running wifi settings: {self.threadpool.activeThreadCount()}")
 
         else:
-            self.textBrowser.append("No available connections to the LucidSens.")
-            self.textBrowser.append("Please re-establish your connection first.")
+            self.textBrowser.append(self.pen() + "No available connections to the LucidSens,\nPlease re-establish your connection first."  + "</font>")
             msg = QtWidgets.QMessageBox()
             msg.setText("No available connections with the LucidSens, please check your connections and try again.")
+            msg.setWindowTitle('Warning')
             msg.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msg.setIcon(QtWidgets.QMessageBox.Warning)
             msg.exec_()
         self.wf.close()
 
     def wf_reject(self):
-        print('No wifi settings has been updated.')
+        """Closes the wifi windows"""
         self.textBrowser.append("No wifi settings has been updated.")
         self.wf.close()
 
