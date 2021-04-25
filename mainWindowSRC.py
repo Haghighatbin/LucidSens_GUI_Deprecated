@@ -43,6 +43,7 @@ class Worker(QtCore.QRunnable):
         '''Worker thread runner method'''
         try:
             output = self.method(*self.args, **self.kwargs)
+            print(output, type(output))
         except:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
@@ -744,7 +745,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.statusbar.showMessage('Waiting for invitation')
         while b'sr_receiver: READY\n' not in self.operator.read_all():
             # self.timer.singleShot(1000, lambda: print('.', end=''))
-            # print('.', end='')
             QtTest.QTest.qWait(delay)
         print('\nInvited, sending GO!')
         self.statusbar.showMessage('Invited, sending GO!')
@@ -770,112 +770,87 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         ### SENDER ###
         try:
             if len(command) > self.packet_size:
-                # print(f'Data larger than {self.packet_size} chars, calling Chopper.')
                 for idx, data in enumerate([chunk for chunk in chopper(command)]):
-                    # print(f'packet[{idx}]: {data} --- length: {len(data)} chars --- size: {sys.getsizeof(data)}')
                     self.operator.write(data.encode())
                     QtTest.QTest.qWait(delay)
                     resp = self.operator.read_all()
                     # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                    # print(resp)
                     if 'EOF received.\n' in resp.decode():
-                        # print('_LucidSens: EOF received in first run, file was sent successfully.')
                         pck_size_tot += sys.getsizeof(data)
                     elif b'got it.\n' in resp:
-                        # print(f'packet [{ixd}] received on the first try.')
                         pck_size_tot += sys.getsizeof(data)
                     else:
-                        # print('sending packet again: {}', end='')
                         while True:
-                            # print('.', end='')
                             self.operator.write(data.encode())
                             QtTest.QTest.qWait(delay)
                             resp = self.operator.read_all()
                             # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                            # print(resp)
                             if 'EOF received.\n' in resp.decode():
-                                # print('EOF received in retry, file was successfully sent.')
                                 pck_size_tot += sys.getsizeof(data)
                                 break
                             elif b'got it.\n' in resp:
-                                # print('packet sent in retry.')
                                 pck_size_tot += sys.getsizeof(data)
                                 break
                             else:
                                 QtTest.QTest.qWait(delay)
-                                pass
                         print('packet eventually received by LS.')
 
             else:
                 self.statusbar.showMessage('Sending...')
-                # print(f'Data not larger than {self.packet_size} chars, no need to call the Chopper.')
                 command += '*#'
                 self.operator.write(command.encode())
                 QtTest.QTest.qWait(delay)
                 resp = self.operator.read_all()
                 # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                # print(resp)
-                if 'EOF received.' in resp.decode():
+                if 'EOF received.\n' in resp.decode():
                     # print('\n_LucidSens: EOF received by LS on the first try.')
                     self.statusbar.showMessage('Command is Sent.')
                     pck_size_tot += sys.getsizeof(command)
                 
                 else:
-                    # print('sending packet again', end='')
                     while True:
                         self.operator.write(command.encode())
-                        # print('.', end='')
                         QtTest.QTest.qWait(delay)
                         resp = self.operator.read_all()
                         # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                        # print(resp)
                         if 'EOF received.' in resp.decode():
-                            # print('\n_LucidSens: EOF received in retry.')
                             pck_size_tot += sys.getsizeof(command)
                             break
                         elif b'got it.' in self.operator.read_all():
-                            # print('\n_LucidSens: packet sent in retry.')
                             pck_size_tot += sys.getsizeof(command)
                             break
                         else:
-                            # QtTest.QTest.qWait(delay)
                             pass
                     self.statusbar.showMessage('Command is sent.')
                     print('Packet eventually received by LucidSens.')
-
-            # print(f'Took {(time.time() - t0)} seconds to {pck_size_tot} bytes.')
             
             ### RECEIVER ###
-            # print('\nReceiving', end='')
             self.statusbar.showMessage('Waiting...')
             while '*' not in self.content:
                 try:
-                    QtTest.QTest.qWait(delay)
+                    QtTest.QTest.qWait(500)
                     data = self.operator.read_all()
                     # data = self.timer.singleShot(1000, lambda: self.operator.read_all())
                     data_decd = data.decode()
-                    # print(data_decd)
+                    counter = data_decd[-6]
                     self.statusbar.showMessage('Receiving...')
                     if '#' in data_decd and data_decd[:-2] not in self.content:
                         if data_decd[-2] == '*':
                             self.content += data_decd[:-1]
-                            # print('\nResponse received!')
+                            print('\nResponse received!')
                             self.statusbar.showMessage('Response is received')
-                            # self.operator.write('EOF received.#'.encode())
                             break
                         elif data_decd[-2] == '_':
-                            # if 'size' in blah
                             self.content += data_decd[:-2]
                             self.operator.write('got it.#'.encode())
-                            # print('.', end='')
-                            QtTest.QTest.qWait(delay)
+                            QtTest.QTest.qWait(500)
                         else:
                             pass
                     else:
                         QtTest.QTest.qWait(delay)
                 except:
                     pass
-            # print(f'\nResponse: {self.content}')
+            print(f'\nResponse: {self.content}')
             if '*' in self.content:
                 self.operator.write('EOF received.#'.encode())
                 with open('resp.txt', 'w') as raw_resp:
@@ -1025,6 +1000,9 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         
     def run(self):
         """Prepares the run command"""
+        if os.path.exists("resp.txt"):
+            os.remove("resp.txt")
+        self.p0.clear()
         if self.checkBox_IncubMod.isChecked():
             command = ({'header': 'incubation'})
             command.update({'body': {
