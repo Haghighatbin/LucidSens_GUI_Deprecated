@@ -37,13 +37,14 @@ class Worker(QtCore.QRunnable):
         self.args = args
         self.kwargs = kwargs
         self.signals = WorkerSignals()
+        self.kwargs['progress_callback'] = self.signals.PROGRESS
 
     @pyqtSlot()
     def run(self):
         '''Worker thread runner method'''
         try:
             output = self.method(*self.args, **self.kwargs)
-            print(output, type(output))
+            # print(output, type(output))
         except:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
@@ -102,7 +103,6 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
     def __init__(self, parent=None):
         super(Form, self).__init__(parent)
 
-        self.packet_size = 256
         self.content = ''
         self.current_file = ''
         # self.timer = QtCore.QTimer()
@@ -571,6 +571,9 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
         self.statusbar.showMessage("Done.")
         self.textBrowser.append(self.pen() + txt + "</font>")
 
+    def progress_status(self, n):
+        self.statusbar.showMessage(f"Received: {n}%")
+
     def writer(self, txt, font_size=8, color='green'):
         """Writer method"""
         self.textBrowser.setTextColor(QtGui.QColor(f'{color}'))
@@ -737,29 +740,11 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             msg.setWindowTitle("Warning")
             msg.exec_()
 
-    def serial_sndr_recvr(self, command):
+    def serial_sndr_recvr(self, command, progress_callback=1):
         """This method encapsulates, encodes and decodes the commands and responses to and from the LucidSens"""
-        self.content = ''
-        delay = 1000  # in ms
-        print('Waiting for invitation', end='')
-        self.statusbar.showMessage('Waiting for invitation')
-        while b'sr_receiver: READY\n' not in self.operator.read_all():
-            # self.timer.singleShot(1000, lambda: print('.', end=''))
-            QtTest.QTest.qWait(delay)
-        print('\nInvited, sending GO!')
-        self.statusbar.showMessage('Invited, sending GO!')
-
-        while b'got it.\n' not in self.operator.read_all():
-            self.operator.write('go#'.encode())
-            # self.timer.singleShot(1000, lambda: self.operator.write('go#'.encode()))
-            QtTest.QTest.qWait(delay)
-
-        pck_size_tot = 0
-        t0 = time.time()
-
         def chopper(cmd):
             data = []
-            segments = [cmd[i:i + self.packet_size] for i in range(0, len(cmd), self.packet_size)]
+            segments = [cmd[i:i + 256] for i in range(0, len(cmd), 256)]
             for segment in segments:
                 if segment == segments[-1]:
                     data.append(segment + '*#')
@@ -767,33 +752,34 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                     data.append(segment + '_#')
             return data
 
-        ### SENDER ###
+        self.content = ''
+        delay = 1000
+        print('Waiting for invitation', end='')
+        self.statusbar.showMessage('Waiting for invitation')
+        while b'sr_receiver: READY\n' not in self.operator.read_all():
+            QtTest.QTest.qWait(delay)
+        print('\nInvited, sending GO!')
+        self.statusbar.showMessage('Invited, sending GO!')
+
+        while b'got it.\n' not in self.operator.read_all():
+            self.operator.write('go#'.encode())
+            QtTest.QTest.qWait(delay)
+
+        # __SERIAL SENDER__ 
         try:
-            if len(command) > self.packet_size:
+            if len(command) > 256:
                 for idx, data in enumerate([chunk for chunk in chopper(command)]):
-                    self.operator.write(data.encode())
-                    QtTest.QTest.qWait(delay)
-                    resp = self.operator.read_all()
-                    # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                    if 'EOF received.\n' in resp.decode():
-                        pck_size_tot += sys.getsizeof(data)
-                    elif b'got it.\n' in resp:
-                        pck_size_tot += sys.getsizeof(data)
-                    else:
-                        while True:
-                            self.operator.write(data.encode())
+                    while True:
+                        self.operator.write(data.encode())
+                        QtTest.QTest.qWait(delay)
+                        resp = self.operator.read_all()
+                        if 'EOF received.\n' in resp.decode():
+                            break
+                        elif 'got it.\n' in resp.decode():
+                            pass
+                        else:
                             QtTest.QTest.qWait(delay)
-                            resp = self.operator.read_all()
-                            # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                            if 'EOF received.\n' in resp.decode():
-                                pck_size_tot += sys.getsizeof(data)
-                                break
-                            elif b'got it.\n' in resp:
-                                pck_size_tot += sys.getsizeof(data)
-                                break
-                            else:
-                                QtTest.QTest.qWait(delay)
-                        print('packet eventually received by LS.')
+                    print('Command received by the LS.')
 
             else:
                 self.statusbar.showMessage('Sending...')
@@ -801,70 +787,72 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
                 self.operator.write(command.encode())
                 QtTest.QTest.qWait(delay)
                 resp = self.operator.read_all()
-                # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                if 'EOF received.\n' in resp.decode():
-                    # print('\n_LucidSens: EOF received by LS on the first try.')
-                    self.statusbar.showMessage('Command is Sent.')
-                    pck_size_tot += sys.getsizeof(command)
-                
-                else:
-                    while True:
-                        self.operator.write(command.encode())
-                        QtTest.QTest.qWait(delay)
-                        resp = self.operator.read_all()
-                        # resp = self.timer.singleShot(1000, lambda: self.operator.read_all())
-                        if 'EOF received.' in resp.decode():
-                            pck_size_tot += sys.getsizeof(command)
-                            break
-                        elif b'got it.' in self.operator.read_all():
-                            pck_size_tot += sys.getsizeof(command)
-                            break
-                        else:
-                            pass
-                    self.statusbar.showMessage('Command is sent.')
-                    print('Packet eventually received by LucidSens.')
+                while 'EOF received.\n' not in resp.decode():
+                    self.operator.write(command.encode())
+                    QtTest.QTest.qWait(delay)
+                    resp = self.operator.read_all()
+                    if 'EOF received.\n' in resp.decode():
+                        break
+                    elif 'got it.\n' in resp.decode():
+                        break
+                    else:
+                        pass
+                print('Command received by the LucidSens.')
             
-            ### RECEIVER ###
+            # __SERIAL RECEIVER__
             self.statusbar.showMessage('Waiting...')
+            print('Waiting...')
+            counter = 0
             while '*' not in self.content:
                 try:
-                    QtTest.QTest.qWait(500)
+                    QtTest.QTest.qWait(100)
                     data = self.operator.read_all()
-                    # data = self.timer.singleShot(1000, lambda: self.operator.read_all())
                     data_decd = data.decode()
-                    counter = data_decd[-6]
-                    self.statusbar.showMessage('Receiving...')
-                    if '#' in data_decd and data_decd[:-2] not in self.content:
-                        if data_decd[-2] == '*':
+                    a_idx = data_decd.find('<') - len(data_decd)
+                    current_idx = data_decd[a_idx+1:data_decd.find('/')]
+                    z_idx = data_decd[data_decd.find('/')+1:data_decd.find('>')]
+
+                    if '#' in data_decd :
+                        self.statusbar.showMessage('Receiving...')
+                        if '*' in data_decd:
                             self.content += data_decd[:-1]
-                            print('\nResponse received!')
-                            self.statusbar.showMessage('Response is received')
-                            break
-                        elif data_decd[-2] == '_':
-                            self.content += data_decd[:-2]
-                            self.operator.write('got it.#'.encode())
+                            print('Response received.')
+                            self.statusbar.showMessage('[Received]: 100%')
                             QtTest.QTest.qWait(500)
+                            break
+                        elif '_' in data_decd and int(current_idx) > counter:
+                            self.content += data_decd[:a_idx]
+                            self.operator.write('got it.#'.encode())
+                            progress = round((int(current_idx) / int(z_idx)) * 100)
+                            sys.stdout.write(f"[Received]: {progress}%\r")
+                            sys.stdout.flush()
+                            counter += 1
+                            progress_callback.emit(round((int(current_idx) / int(z_idx)) * 100))
+                            QtTest.QTest.qWait(100)
                         else:
                             pass
                     else:
                         QtTest.QTest.qWait(delay)
                 except:
                     pass
-            print(f'\nResponse: {self.content}')
+            counter = 0
+            # print(f'Response: {self.content}')
             if '*' in self.content:
                 self.operator.write('EOF received.#'.encode())
                 with open('resp.txt', 'w') as raw_resp:
                     raw_resp.write(self.content[:-1])
-                self.statusbar.showMessage('Processing the response...')
+                self.statusbar.showMessage('Response is being processed.\nDone.')
                 with open('resp.txt', 'r') as f:
                     for line in f:
-                        resp = eval(line)
+                        return eval(line)
+            else:
+                return {'header':'Corrupted Data!'}
+                
         except KeyboardInterrupt:
-            print('Aborted!')
+            return {'header': 'User interruption.'}
         except Exception as e:
             print(e)
-        finally:
-            return resp
+            return {'header':'Corrupted Data!'}
 
     def response_handler(self, resp):
         """Handles the responses and task completion signs"""
@@ -940,32 +928,33 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             with open('resp.txt', 'r') as f:
                 for line in f:
                     if 'test' in eval(line)['header']:
-                        # print('Test_Astroid list is received, illustrating...')
                         self.statusbar.showMessage('Astroid list is received, illustrating...')
                         list_t = eval(line)['body']
                     else:
                         print('Something is wrong with the received list.')
-
             self.graphicsView.clear()
-            p2 = self.graphicsView.addPlot()
-            p2.showAxis('right', show=True)
-            p2.showAxis('top', show=True)
+            self.p0 = self.graphicsView.addPlot()
+            self.p0.showAxis('right', show=True)
+            self.p0.showAxis('top', show=True)
+            self.p0.showGrid(x=True, y=True, alpha=1)
             for _ in range(1):
                 for i in range(len(list_t)):
-                    p2.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][1], pen=pg.mkPen((i, 2), width=1))
+                    self.p0.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][1], pen=pg.mkPen((i, 2), width=2))
                     QtTest.QTest.qWait(10)
-                    p2.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][2], pen=pg.mkPen((i, 2), width=1))
+                    self.p0.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][2], pen=pg.mkPen((i, 2), width=2))
                     QtTest.QTest.qWait(10)
                 QtTest.QTest.qWait(3000)
                 for i in reversed(range(len(list_t))):
                     QtTest.QTest.qWait(10)
-                    p2.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][1], pen=pg.mkPen('k', width=1))
+                    self.p0.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][1], pen=pg.mkPen('k', width=2))
                     QtTest.QTest.qWait(10)
-                    p2.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][2], pen=pg.mkPen('k', width=1))
+                    self.p0.plot(title="Connection Test", x=list_t[i][0], y=list_t[i][2], pen=pg.mkPen('k', width=2))
                     QtTest.QTest.qWait(10)
-            p2.clear()
-            p2.showGrid(x=True, y=True, alpha=1)
-
+            self.graphicsView.clear()
+            self.p0 = self.graphicsView.addPlot()
+            self.p0.showAxis('right', show=True)
+            self.p0.showAxis('top', show=True)
+            self.p0.showGrid(x=True, y=True, alpha=1)
         except Exception as e:
             print(e)
 
@@ -983,6 +972,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             test_worker.signals.DONE.connect(self.thread_completed)
             test_worker.signals.OUTPUT.connect(self.response_handler)
             test_worker.signals.ERROR.connect(self.error_report)
+            test_worker.signals.PROGRESS.connect(self.progress_status)
             self.threadpool.start(test_worker)
             # self.timer.singleShot(15000, lambda: self.test())
             QtTest.QTest.qWait(20000)
@@ -1029,8 +1019,8 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             run_worker.signals.DONE.connect(self.thread_completed)
             run_worker.signals.OUTPUT.connect(self.response_handler)
             run_worker.signals.ERROR.connect(self.error_report)
+            run_worker.signals.PROGRESS.connect(self.progress_status)
             self.threadpool.start(run_worker)
-            # self.timer.singleShot(15000, lambda: self.test())
 
         else:
             self.textBrowser.append(self.pen() + "No available connections to the LucidSens,\nPlease re-establish your connection first." + "</font>")
@@ -1189,6 +1179,7 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             stop_worker.signals.DONE.connect(self.thread_completed)
             stop_worker.signals.OUTPUT.connect(self.response_handler)
             stop_worker.signals.ERROR.connect(self.error_report)
+            stop_worker.signals.PROGRESS.connect(self.progress_status)
             self.threadpool.start(stop_worker)
 
     def preferences(self):
@@ -1288,10 +1279,9 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             wf_worker = Worker(self.serial_sndr_recvr, jsnd_cmd)
             wf_worker.signals.DONE.connect(self.thread_completed)
             wf_worker.signals.OUTPUT.connect(self.response_handler)
-            # test_worker.signals.PROGRESS.connect(self.progress_status)
+            wf_worker.signals.PROGRESS.connect(self.progress_status)
             wf_worker.signals.ERROR.connect(self.error_report)
             self.threadpool.start(wf_worker)
-            # print(f"active threads after running wifi settings: {self.threadpool.activeThreadCount()}")
 
         else:
             self.textBrowser.append(self.pen() + "No available connections to the LucidSens,\nPlease re-establish your connection first."  + "</font>")
