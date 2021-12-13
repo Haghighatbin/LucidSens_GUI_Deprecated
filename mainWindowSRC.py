@@ -563,7 +563,8 @@ class Form(QtWidgets.QMainWindow, mainWindowGUI.Ui_MainWindow):
             txt = 'Incubation in progress. please be patient. \n\nNote: Incubation can be canceled by clicking on the Stop button.'
 
         elif 'sampling' in txt:
-            txt = 'Sampling is initialised, please be patient.'
+            # txt = 'Sampling is initialised, please be patient.'
+            txt = 'Sampling is done...illustrating.'
 
         else:
             txt = 'Task was not clear, howerver, it is handled now!'
@@ -1317,9 +1318,6 @@ class MySplashScreen(QtWidgets.QSplashScreen):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    # app.setWindowIcon(
-    #     QtGui.QIcon(":/Icons/lucidsens_2.icns"))
-
     # splash = MySplashScreen("/Users/aminhb/PycharmProjects/MinimalSensGUI_v0.01/MinimalSensGUI_v0.01/Logo_Splash.gif", QtCore.Qt.WindowStaysOnTopHint)
     # splash.setMask(splash.mask())
     # splash.raise_()
